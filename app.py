@@ -1865,12 +1865,13 @@ def estrai_e_analizza():
 @app.route('/risultati/<date_str>')
 def risultati(date_str):
     """Pagina a tutto schermo per visualizzare i risultati analizzati per una data specifica
-    Usa SOLO dati dalla cache - le estrazioni vengono fatte tramite il calendario con API asincrona"""
+    Fa chiamata OData diretta con timeout breve, usa cache come fallback"""
     try:
-        app.logger.info(f"Visualizzazione risultati per data: {date_str} (solo cache, nessuna chiamata OData)")
+        app.logger.info(f"Inizio estrazione risultati per data: {date_str}")
         
         # Estrai e analizza i dati per la data specificata
         site = 'TST - EDC Torino'
+        date_field = 'LaunchDate'
         
         # Converti la data
         try:
@@ -1879,48 +1880,304 @@ def risultati(date_str):
             flash('Formato data non valido', 'error')
             return redirect(url_for('calendario_estrazione'))
         
-        # Controlla SEMPRE la cache (non facciamo chiamate OData sincrone)
+        # Controlla la cache come fallback
         cached_data, cache_timestamp = get_cached_extraction(date_str, site)
         
-        if cached_data:
-            app.logger.info(f"Cache trovata per {date_str}, visualizzazione dati")
-            result = cached_data.copy()
-            result['from_cache'] = True
-            result['cache_timestamp'] = cache_timestamp
-            result['api_available'] = False
-            return render_template('risultati.html', data=result)
+        # Carica configurazione OData
+        config = load_odata_config()
+        odata_base_url = config.get('odata_url', 'https://voiapp.fr')
+        odata_endpoint = config.get('odata_endpoint', 'michelinpal/odata/DMX')
+        date_field = config.get('date_field', date_field)
+        site_field = config.get('site_field', 'SiteName')
+        
+        # Costruisci URL completo
+        if odata_endpoint:
+            odata_url = f"{odata_base_url.rstrip('/')}/{odata_endpoint.lstrip('/')}"
         else:
-            # Nessuna cache disponibile - mostra messaggio per estrarre i dati
-            app.logger.warning(f"Nessuna cache disponibile per {date_str}")
-            error_data = {
-                'success': False,
-                'error': 'Nessun dato disponibile per questa data. Estrai i dati dal calendario prima di visualizzare i dettagli.',
-                'date': date_str,
-                'needs_extraction': True,
-                'statistics': {
-                    'totali': {
-                        'totale_pezzi': 0,
-                        'pezzi_checkati': 0,
-                        'pezzi_da_checkare': 0,
-                        'pezzi_accessori': 0,
-                        'pezzi_crossdock': 0,
-                        'totale_giri': 0,
-                        'giri_completati': 0,
-                        'giri_non_completati': 0,
-                        'percentuale_completamento': 0,
-                        'percentuale_completamento_giri': 0
+            odata_url = f"{odata_base_url.rstrip('/')}/michelinpal/odata/DMX"
+        
+        # Estrai sito (per Torino: "TST - EDC Torino" -> "TST")
+        site_code = ''
+        if site and site != '' and site != 'Tous':
+            if '-' in site:
+                site_code = site.split('-')[0].strip()
+            else:
+                site_code = site[:3].strip()
+        
+        # Costruisci filtro come nel VBA (stesso giorno)
+        day_start = date_start.day
+        month = date_start.month
+        year = date_start.year
+        
+        filters = []
+        if site_code:
+            filters.append(f"{site_field} eq '{site_code}'")
+        
+        # Filtro data: stesso giorno
+        filters.append(f"day({date_field}) eq {day_start} and month({date_field}) eq {month} and year({date_field}) eq {year}")
+        
+        filter_query = ' and '.join(filters)
+        
+        # Campi da selezionare
+        detail_col = "Id,Route,ShipTo,CustomerName,CustomerAddress,CustomerPostCode,CustomerCity,PAYS,CAI,ItemDescription,SiteName,Weight,LaunchDate,Carrier,CarrierMode,Reservation,InvRem,PalletId,PalletScanDate,TransportPalletId,TransportPalletScanDate,LoadingId,LoadingDate,REF,LoadingPosition,GROUPE,Quantity,CustomerRef,EXPDLVDAT,CAC,REF_CLIENT,ADD,YDMXId"
+        
+        # Costruisci URL
+        filter_encoded = quote(filter_query)
+        select_encoded = quote(detail_col)
+        full_url = f"{odata_url}?$filter={filter_encoded}&$orderby={date_field}&$select={select_encoded}"
+        
+        app.logger.info(f"URL OData: {full_url}")
+        
+        # Headers per OData
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+        
+        # Autenticazione
+        auth = None
+        if config.get('requires_auth'):
+            auth_type = config.get('auth_type', 'basic')
+            auth_username = config.get('auth_username', '').strip()
+            auth_password = config.get('auth_password', '').strip()
+            
+            if auth_type == 'basic' and auth_username and auth_password:
+                from requests.auth import HTTPBasicAuth
+                auth = HTTPBasicAuth(auth_username, auth_password)
+                app.logger.info(f"Autenticazione configurata: username={auth_username}")
+        
+        # Fai la richiesta DMX con timeout molto breve (10 secondi)
+        records = []
+        try:
+            app.logger.info(f"Inizio richiesta OData per {date_str} (timeout 10s)")
+            response = requests.get(full_url, headers=headers, auth=auth, timeout=10, allow_redirects=True)
+            app.logger.info(f"Risposta OData ricevuta: status={response.status_code}")
+            
+            if response.status_code == 200:
+                data_json = response.json()
+                if 'value' in data_json:
+                    records = data_json['value']
+                elif isinstance(data_json, list):
+                    records = data_json
+                else:
+                    records = [data_json]
+                app.logger.info(f"API ha restituito {len(records)} record per {date_str}")
+        except requests.exceptions.Timeout:
+            app.logger.warning(f"Timeout OData per {date_str}, uso cache se disponibile")
+            if cached_data:
+                result = cached_data.copy()
+                result['from_cache'] = True
+                result['cache_timestamp'] = cache_timestamp
+                result['api_available'] = False
+                result['error'] = 'Timeout nella richiesta OData, dati dalla cache'
+                return render_template('risultati.html', data=result)
+            else:
+                error_data = {
+                    'success': False,
+                    'error': 'Timeout nella richiesta OData. Riprova più tardi o estrai i dati dal calendario.',
+                    'date': date_str,
+                    'statistics': {
+                        'totali': {
+                            'totale_pezzi': 0,
+                            'pezzi_checkati': 0,
+                            'pezzi_da_checkare': 0,
+                            'pezzi_accessori': 0,
+                            'pezzi_crossdock': 0,
+                            'totale_giri': 0,
+                            'giri_completati': 0,
+                            'giri_non_completati': 0,
+                            'percentuale_completamento': 0,
+                            'percentuale_completamento_giri': 0
+                        },
+                        'per_giro': [],
+                        'per_cc': []
                     },
-                    'per_giro': [],
-                    'per_cc': []
-                },
-                'details': {},
-                'accessori_details': {},
-                'crossdock_details': {},
-                'clienti_per_giro': {},
-                'product_search': {},
-                'product_descriptions': {}
-            }
-            return render_template('risultati.html', data=error_data)
+                    'details': {},
+                    'accessori_details': {},
+                    'crossdock_details': {},
+                    'clienti_per_giro': {},
+                    'product_search': {},
+                    'product_descriptions': {}
+                }
+                return render_template('risultati.html', data=error_data)
+        except requests.exceptions.RequestException as e:
+            app.logger.error(f"Errore OData per {date_str}: {e}")
+            if cached_data:
+                result = cached_data.copy()
+                result['from_cache'] = True
+                result['cache_timestamp'] = cache_timestamp
+                result['api_available'] = False
+                result['error'] = f'Errore OData: {str(e)}, dati dalla cache'
+                return render_template('risultati.html', data=result)
+            else:
+                error_data = {
+                    'success': False,
+                    'error': f'Errore di connessione OData: {str(e)}',
+                    'date': date_str,
+                    'statistics': {
+                        'totali': {
+                            'totale_pezzi': 0,
+                            'pezzi_checkati': 0,
+                            'pezzi_da_checkare': 0,
+                            'pezzi_accessori': 0,
+                            'pezzi_crossdock': 0,
+                            'totale_giri': 0,
+                            'giri_completati': 0,
+                            'giri_non_completati': 0,
+                            'percentuale_completamento': 0,
+                            'percentuale_completamento_giri': 0
+                        },
+                        'per_giro': [],
+                        'per_cc': []
+                    },
+                    'details': {},
+                    'accessori_details': {},
+                    'crossdock_details': {},
+                    'clienti_per_giro': {},
+                    'product_search': {},
+                    'product_descriptions': {}
+                }
+                return render_template('risultati.html', data=error_data)
+        
+        # Se non ci sono record, usa cache se disponibile
+        if not records or len(records) == 0:
+            app.logger.warning(f"Nessun record dall'API per {date_str}")
+            if cached_data:
+                result = cached_data.copy()
+                result['from_cache'] = True
+                result['cache_timestamp'] = cache_timestamp
+                result['api_available'] = False
+                result['error'] = 'Nessun dato dall\'API per questa data, dati dalla cache'
+                return render_template('risultati.html', data=result)
+            else:
+                error_data = {
+                    'success': False,
+                    'error': 'Nessun dato disponibile per questa data dall\'API OData.',
+                    'date': date_str,
+                    'statistics': {
+                        'totali': {
+                            'totale_pezzi': 0,
+                            'pezzi_checkati': 0,
+                            'pezzi_da_checkare': 0,
+                            'pezzi_accessori': 0,
+                            'pezzi_crossdock': 0,
+                            'totale_giri': 0,
+                            'giri_completati': 0,
+                            'giri_non_completati': 0,
+                            'percentuale_completamento': 0,
+                            'percentuale_completamento_giri': 0
+                        },
+                        'per_giro': [],
+                        'per_cc': []
+                    },
+                    'details': {},
+                    'accessori_details': {},
+                    'crossdock_details': {},
+                    'clienti_per_giro': {},
+                    'product_search': {},
+                    'product_descriptions': {}
+                }
+                return render_template('risultati.html', data=error_data)
+        
+        # Carica Loadings per LoadingName (con timeout breve)
+        loadings_dict = {}
+        try:
+            loadings_url = f"{odata_base_url.rstrip('/')}/michelinpal/odata/Loadings"
+            loadings_response = requests.get(loadings_url, headers=headers, auth=auth, timeout=10, allow_redirects=True)
+            if loadings_response.status_code == 200:
+                loadings_json = loadings_response.json()
+                loadings_records = loadings_json.get('value', []) if 'value' in loadings_json else (loadings_json if isinstance(loadings_json, list) else [])
+                
+                for loading in loadings_records:
+                    if isinstance(loading, dict):
+                        loading_id = None
+                        loading_name = None
+                        
+                        if 'LoadingId' in loading:
+                            loading_id = loading['LoadingId']
+                        elif 'Id' in loading:
+                            loading_id = loading['Id']
+                        elif len(loading) > 0:
+                            loading_id = loading[list(loading.keys())[0]]
+                        
+                        if 'LoadingName' in loading:
+                            loading_name = loading['LoadingName']
+                        elif 'Name' in loading:
+                            loading_name = loading['Name']
+                        elif len(loading) > 1:
+                            keys_list = list(loading.keys())
+                            if len(keys_list) > 1:
+                                loading_name = loading[keys_list[1]]
+                                for key in loading.keys():
+                                    if 'name' in key.lower() and key.lower() not in ['loadingid', 'id']:
+                                        loading_name = loading[key]
+                                        break
+                        
+                        if loading_id is not None and loading_name:
+                            loadings_dict[str(loading_id)] = str(loading_name).strip()
+        except Exception as e:
+            app.logger.warning(f"Errore caricamento Loadings (continuerò senza): {str(e)}")
+        
+        # Aggiungi LoadingName ai record
+        for record in records:
+            if isinstance(record, dict) and 'LoadingId' in record and record['LoadingId']:
+                loading_id = str(record['LoadingId']).strip()
+                record['LoadingName'] = loadings_dict.get(loading_id, '')
+        
+        # Analizza i dati
+        analysis_result = analyze_odata_data(records)
+        
+        if not analysis_result.get('success'):
+            app.logger.error(f"Errore nell'analisi per {date_str}: {analysis_result.get('error')}")
+            if cached_data:
+                result = cached_data.copy()
+                result['from_cache'] = True
+                result['cache_timestamp'] = cache_timestamp
+                result['api_available'] = False
+                result['error'] = f"Errore nell'analisi, dati dalla cache"
+                return render_template('risultati.html', data=result)
+            else:
+                error_data = {
+                    'success': False,
+                    'error': f"Errore nell'analisi: {analysis_result.get('error', 'Errore sconosciuto')}",
+                    'date': date_str,
+                    'statistics': {
+                        'totali': {
+                            'totale_pezzi': 0,
+                            'pezzi_checkati': 0,
+                            'pezzi_da_checkare': 0,
+                            'pezzi_accessori': 0,
+                            'pezzi_crossdock': 0,
+                            'totale_giri': 0,
+                            'giri_completati': 0,
+                            'giri_non_completati': 0,
+                            'percentuale_completamento': 0,
+                            'percentuale_completamento_giri': 0
+                        },
+                        'per_giro': [],
+                        'per_cc': []
+                    },
+                    'details': {},
+                    'accessori_details': {},
+                    'crossdock_details': {},
+                    'clienti_per_giro': {},
+                    'product_search': {},
+                    'product_descriptions': {}
+                }
+                return render_template('risultati.html', data=error_data)
+        
+        # Aggiungi informazioni e salva in cache
+        analysis_result['date'] = date_str
+        analysis_result['site'] = site
+        analysis_result['extraction_date'] = datetime.now().isoformat()
+        analysis_result['count'] = len(records)
+        analysis_result['from_cache'] = False
+        analysis_result['api_available'] = True
+        
+        # Salva SEMPRE in cache per mantenere lo storico
+        save_extraction_to_cache(date_str, site, analysis_result)
+        
+        return render_template('risultati.html', data=analysis_result)
         
     except Exception as e:
         import traceback
