@@ -2354,10 +2354,10 @@ def risultati(date_str):
                 auth = HTTPBasicAuth(auth_username, auth_password)
                 app.logger.info(f"Autenticazione configurata: username={auth_username}")
         
-        # Fai la richiesta DMX con timeout MOLTO breve (5 secondi) per evitare worker timeout su Render
+        # Fai la richiesta DMX con timeout breve (5 secondi) per evitare timeout
         records = []
         try:
-            app.logger.info(f"Inizio richiesta OData per {date_str} (timeout 5s - Render free tier)")
+            app.logger.info(f"Inizio richiesta OData per {date_str} (timeout 5s)")
             app.logger.info(f"URL completo: {full_url}")
             app.logger.info(f"Auth configurata: {auth is not None}")
             
@@ -2487,7 +2487,7 @@ def risultati(date_str):
                 }
                 return render_template('risultati.html', data=error_data)
         
-        # Carica Loadings per LoadingName (con timeout MOLTO breve per Render)
+        # Carica Loadings per LoadingName (con timeout breve)
         loadings_dict = {}
         try:
             loadings_url = f"{odata_base_url.rstrip('/')}/michelinpal/odata/Loadings"
@@ -2604,10 +2604,10 @@ def risultati(date_str):
         app.logger.error(f"TIMEOUT OData per {date_str}: {e}")
         app.logger.error(f"Traceback: {traceback.format_exc()}")
         
-        # Su Render, le chiamate OData sono troppo lente - mostra messaggio chiaro
+        # Timeout nella richiesta OData - mostra messaggio chiaro
         error_data = {
             'success': False,
-            'error': f'Timeout nella richiesta OData (oltre 5 secondi). Su Render, le chiamate OData possono essere lente. Estrai i dati dal calendario prima di visualizzare i dettagli.',
+            'error': f'Timeout nella richiesta OData (oltre 5 secondi). Estrai i dati dal calendario prima di visualizzare i dettagli.',
             'date': date_str,
             'hint': 'Vai su "Calendario Estrazione", clicca sul giorno per estrarre i dati, poi torna qui per visualizzare i dettagli.',
             'statistics': {
@@ -2819,7 +2819,7 @@ def service_worker():
 
 
 if __name__ == '__main__':
-    # In produzione, Render usa gunicorn, quindi questo viene eseguito solo in locale
+    # In produzione su Vercel, questo viene eseguito solo in locale
     debug_mode = os.environ.get('FLASK_ENV') != 'production'
     port = int(os.environ.get('PORT', 5004))
     app.run(debug=debug_mode, host='0.0.0.0', port=port)
