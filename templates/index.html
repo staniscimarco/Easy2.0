@@ -196,6 +196,15 @@
             return false;
         }
         
+        // Verifica dimensione file (limite Vercel: 4.5MB)
+        const file = fileInput.files[0];
+        const maxSize = 4.5 * 1024 * 1024; // 4.5MB in bytes
+        if (file.size > maxSize) {
+            const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+            alert(`❌ File troppo grande!\n\nDimensione: ${fileSizeMB}MB\nLimite massimo: 4.5MB (limite Vercel)\n\nSoluzione: Dividi il file in parti più piccole prima di processarlo.`);
+            return false;
+        }
+        
         // Mostra indicatore di caricamento
         const originalBtnText = btn.innerHTML;
         btn.disabled = true;
