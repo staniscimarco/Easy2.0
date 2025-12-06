@@ -33,26 +33,46 @@ def get_mongo_client():
     global _mongo_client, _mongo_db
     
     if not USE_MONGODB:
+        print(f"⚠️ USE_MONGODB è False. MONGODB_URI={bool(MONGODB_URI)}, PYMONGO_AVAILABLE={PYMONGO_AVAILABLE}")
         return None, None
     
     if _mongo_client is None:
         try:
-            _mongo_client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
+            print(f"🔄 Tentativo connessione MongoDB... URI length: {len(MONGODB_URI) if MONGODB_URI else 0}")
+            # Aumenta il timeout per dare più tempo alla connessione
+            _mongo_client = MongoClient(
+                MONGODB_URI, 
+                serverSelectionTimeoutMS=10000,  # 10 secondi invece di 5
+                connectTimeoutMS=10000,
+                socketTimeoutMS=10000
+            )
             # Testa la connessione
+            print("🔄 Testing ping...")
             _mongo_client.admin.command('ping')
+            print("✅ Ping riuscito!")
             _mongo_db = _mongo_client[MONGODB_DB_NAME]
             print(f"✅ Connesso a MongoDB: {MONGODB_DB_NAME}")
             return _mongo_client, _mongo_db
-        except (ConnectionFailure, ServerSelectionTimeoutError) as e:
-            print(f"⚠️ Errore connessione MongoDB: {e}. Uso file system locale.")
+        except ConnectionFailure as e:
+            error_msg = f"⚠️ ConnectionFailure: {str(e)}"
+            print(error_msg)
             _mongo_client = None
             _mongo_db = None
-            return None, None
+            raise Exception(error_msg)  # Rilancia per essere catturato dall'endpoint
+        except ServerSelectionTimeoutError as e:
+            error_msg = f"⚠️ ServerSelectionTimeoutError: {str(e)}"
+            print(error_msg)
+            _mongo_client = None
+            _mongo_db = None
+            raise Exception(error_msg)  # Rilancia per essere catturato dall'endpoint
         except Exception as e:
-            print(f"⚠️ Errore MongoDB: {e}. Uso file system locale.")
+            error_msg = f"⚠️ Errore MongoDB generico: {type(e).__name__}: {str(e)}"
+            print(error_msg)
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
             _mongo_client = None
             _mongo_db = None
-            return None, None
+            raise Exception(error_msg)  # Rilancia per essere catturato dall'endpoint
     
     return _mongo_client, _mongo_db
 

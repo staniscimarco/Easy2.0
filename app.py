@@ -2506,14 +2506,20 @@ def test_mongodb():
                 }), 200
         except Exception as conn_error:
             import traceback
+            error_traceback = traceback.format_exc()
+            # Log anche su console per debug
+            app.logger.error(f"MongoDB connection error: {str(conn_error)}")
+            app.logger.error(f"Traceback: {error_traceback}")
+            
             return jsonify({
                 'success': False,
                 'message': f'❌ Errore durante connessione MongoDB: {str(conn_error)}',
                 'error': str(conn_error),
+                'error_type': type(conn_error).__name__,
                 'using_mongodb': False,
                 'using_filesystem': True,
                 'debug': debug_info,
-                'traceback': traceback.format_exc()
+                'traceback': error_traceback
             }), 200
             
     except Exception as e:
