@@ -1,14 +1,15 @@
 """
 Vercel serverless function wrapper for Flask app
-Vercel uses serverless functions, so we need to wrap Flask in a handler
+Vercel Python supports Flask directly - just export the app
 """
+import sys
+import os
+
+# Add parent directory to path so we can import app
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from app import app
 
-# Vercel expects a handler function
-# For Flask, we use the WSGI adapter
-def handler(request, response):
-    # Import the WSGI adapter from vercel
-    from vercel import wsgi
-    
-    # Return the WSGI application wrapped for Vercel
-    return wsgi(app)(request, response)
+# Vercel expects the Flask app to be exported as 'app' or 'application'
+# This works directly with @vercel/python
+application = app
