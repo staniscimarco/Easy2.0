@@ -7,10 +7,10 @@
     <meta name="theme-color" content="#00457d">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Easyloading">
+    <meta name="apple-mobile-web-app-title" content="Easy 2.0">
     <meta name="mobile-web-app-capable" content="yes">
     
-    <title>{% block title %}Easyloading - Sistema di Gestione{% endblock %}</title>
+    <title>{% block title %}Easy 2.0 - Sistema di Gestione{% endblock %}</title>
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="/static/manifest.json">
@@ -80,12 +80,18 @@
         }
         
         .navbar-brand img {
-            height: 60px;
+            height: 45px;
             width: auto;
             object-fit: contain;
             background-color: white;
             padding: 5px;
             border-radius: 4px;
+        }
+        
+        @media (max-width: 768px) {
+            .navbar-brand img {
+                height: 35px;
+            }
         }
 
         .navbar-brand i {

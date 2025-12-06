@@ -221,17 +221,23 @@
         <!-- Indicatore Aggiornamento Automatico -->
         <div class="row mb-3">
             <div class="col-12">
-                <div class="alert alert-info d-flex justify-content-between align-items-center" id="updateIndicator" style="border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-arrow-clockwise me-2" id="updateIcon" style="font-size: 1.2rem;"></i>
-                        <span id="updateStatus" style="font-weight: 600;">Aggiornamento Attivo: <span id="updateStatusValue" style="color: #28a745; font-weight: 700;">Sì</span></span>
-                    </div>
-                    <div class="d-flex align-items-center gap-3">
-                        <small id="lastUpdateTime" class="text-muted" style="font-size: 0.85rem;">Ultimo aggiornamento: <span id="lastUpdateTimeValue">--:--:--</span></small>
-                        <small id="countdownTimer" class="text-muted" style="font-size: 0.85rem; font-weight: 600;">
-                            <i class="bi bi-clock me-1"></i>
-                            Prossimo aggiornamento: <span id="countdownValue" style="color: #00457d; font-weight: 700;">--:--</span>
-                        </small>
+                <div class="alert alert-info" id="updateIndicator" style="border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-12 col-md-4">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-arrow-clockwise me-2" id="updateIcon" style="font-size: 1.2rem;"></i>
+                                <span id="updateStatus" style="font-weight: 600;">Aggiornamento Attivo: <span id="updateStatusValue" style="color: #28a745; font-weight: 700;">Sì</span></span>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <small id="lastUpdateTime" class="text-muted d-block" style="font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Ultimo aggiornamento: <span id="lastUpdateTimeValue">--:--:--</span></small>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <small id="countdownTimer" class="text-muted d-block" style="font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                <i class="bi bi-clock me-1"></i>
+                                Prossimo: <span id="countdownValue" style="color: #00457d; font-weight: 700;">--:--</span>
+                            </small>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -860,35 +866,35 @@
                         <div class="card stat-card text-white ${ccColor}" style="box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
                             <div class="card-body">
                                 <h5 class="card-title mb-3" style="font-weight: 700; text-transform: uppercase; letter-spacing: 1px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">${cc.cc}</h5>
-                                <div class="row text-center g-2">
-                                    <div class="col-2 px-1">
+                                <div class="row g-2 text-center">
+                                    <div class="col-6 col-md-4 col-lg-2">
                                         <div class="d-flex flex-column align-items-center">
-                                            <small class="text-white-50 mb-1" style="font-size: 0.7rem; white-space: nowrap; font-weight: 600; text-transform: uppercase;">Previsti</small>
-                                            <h5 class="mb-0 fw-bold" style="color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.3rem;">${(cc.totale_pezzi || 0).toLocaleString()}</h5>
+                                            <small class="text-white-50 mb-1" style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase;">Previsti</small>
+                                            <div class="fw-bold" style="color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.1rem; word-break: break-word; line-height: 1.2;">${(cc.totale_pezzi || 0).toLocaleString()}</div>
                                         </div>
                                     </div>
-                                    <div class="col-2 px-1">
+                                    <div class="col-6 col-md-4 col-lg-2">
                                         <div class="d-flex flex-column align-items-center">
-                                            <small class="text-white-50 mb-1" style="font-size: 0.7rem; white-space: nowrap; font-weight: 600; text-transform: uppercase;">Checked</small>
-                                            <h5 class="mb-0 fw-bold" style="color: #d4edda; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.3rem;">${(cc.pezzi_checkati || 0).toLocaleString()}</h5>
+                                            <small class="text-white-50 mb-1" style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase;">Checked</small>
+                                            <div class="fw-bold" style="color: #d4edda; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.1rem; word-break: break-word; line-height: 1.2;">${(cc.pezzi_checkati || 0).toLocaleString()}</div>
                                         </div>
                                     </div>
-                                    <div class="col-2 px-1">
+                                    <div class="col-6 col-md-4 col-lg-2">
                                         <div class="d-flex flex-column align-items-center">
-                                            <small class="text-white-50 mb-1" style="font-size: 0.7rem; white-space: nowrap; font-weight: 600; text-transform: uppercase;">To be Check</small>
-                                            <h5 class="mb-0 fw-bold" style="color: #f8d7da; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.3rem;">${(cc.pezzi_da_checkare || 0).toLocaleString()}</h5>
+                                            <small class="text-white-50 mb-1" style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase;">To Check</small>
+                                            <div class="fw-bold" style="color: #f8d7da; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.1rem; word-break: break-word; line-height: 1.2;">${(cc.pezzi_da_checkare || 0).toLocaleString()}</div>
                                         </div>
                                     </div>
-                                    <div class="col-2 px-1">
+                                    <div class="col-6 col-md-4 col-lg-2">
                                         <div class="d-flex flex-column align-items-center">
-                                            <small class="text-white-50 mb-1" style="font-size: 0.7rem; white-space: nowrap; font-weight: 600; text-transform: uppercase;">Accessori</small>
-                                            <h5 class="mb-0 fw-bold" style="color: #d1ecf1; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.3rem;">${(cc.pezzi_accessori || 0).toLocaleString()}</h5>
+                                            <small class="text-white-50 mb-1" style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase;">Accessori</small>
+                                            <div class="fw-bold" style="color: #d1ecf1; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.1rem; word-break: break-word; line-height: 1.2;">${(cc.pezzi_accessori || 0).toLocaleString()}</div>
                                         </div>
                                     </div>
-                                    <div class="col-2 px-1">
+                                    <div class="col-6 col-md-4 col-lg-2">
                                         <div class="d-flex flex-column align-items-center">
-                                            <small class="text-white-50 mb-1" style="font-size: 0.7rem; white-space: nowrap; font-weight: 600; text-transform: uppercase;">Crossdock</small>
-                                            <h5 class="mb-0 fw-bold" style="color: #fff3cd; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.3rem;">${(cc.pezzi_crossdock || 0).toLocaleString()}</h5>
+                                            <small class="text-white-50 mb-1" style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase;">Crossdock</small>
+                                            <div class="fw-bold" style="color: #fff3cd; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.1rem; word-break: break-word; line-height: 1.2;">${(cc.pezzi_crossdock || 0).toLocaleString()}</div>
                                         </div>
                                     </div>
                                 </div>

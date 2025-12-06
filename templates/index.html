@@ -9,16 +9,18 @@
         <!-- Anagrafica Section -->
         <div class="col-lg-6">
             <div class="card h-100">
-                <div class="card-header">
-                    <i class="bi bi-database me-2"></i>
-                    Anagrafica Articoli
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="bi bi-database me-2"></i>
+                        Anagrafica Articoli
+                    </div>
                     {% if anagrafica_loaded %}
-                        <span class="status-badge status-loaded ms-3">
+                        <span class="status-badge status-loaded">
                             <i class="bi bi-check-circle"></i>
                             Caricata
                         </span>
                     {% else %}
-                        <span class="status-badge status-not-loaded ms-3">
+                        <span class="status-badge status-not-loaded">
                             <i class="bi bi-x-circle"></i>
                             Non caricata
                         </span>

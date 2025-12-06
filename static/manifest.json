@@ -1,6 +1,6 @@
 {
-  "name": "Easyloading - Sistema di Gestione",
-  "short_name": "Easyloading",
+  "name": "Easy 2.0",
+  "short_name": "Easy 2.0",
   "description": "Sistema di gestione CSV e estrazione dati OData",
   "start_url": "/",
   "display": "standalone",

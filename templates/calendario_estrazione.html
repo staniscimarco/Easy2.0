@@ -31,6 +31,27 @@
             border-radius: 10px;
         }
         
+        @media (max-width: 768px) {
+            .calendar-wrapper {
+                padding: 15px;
+                margin: 0 10px;
+            }
+            
+            .calendar-grid {
+                gap: 4px;
+            }
+            
+            .calendar-day {
+                font-size: 0.9rem;
+                min-height: 35px;
+            }
+            
+            .calendar-day-header {
+                font-size: 0.75rem;
+                padding: 8px 4px;
+            }
+        }
+        
         .calendar-header {
             display: flex;
             justify-content: space-between;
@@ -88,6 +109,8 @@
             background: white;
             font-weight: 500;
             position: relative;
+            text-align: center;
+            min-height: 40px;
         }
         
         .calendar-day:hover:not(.disabled):not(.selected) {
@@ -116,10 +139,22 @@
             background: #28a745 !important;
             color: white !important;
             border-color: #218838 !important;
+            z-index: 2;
         }
         
         .calendar-day.extracted:hover {
             background: #218838 !important;
+        }
+        
+        /* Priorità: extracted > selected > today */
+        .calendar-day.extracted.selected {
+            background: #28a745 !important;
+            color: white !important;
+        }
+        
+        .calendar-day.extracted.today {
+            background: #28a745 !important;
+            color: white !important;
         }
         
         .info-box {
@@ -1399,14 +1434,15 @@
                 dayElement.className = 'calendar-day';
                 dayElement.textContent = day;
                 
-                if (isToday) {
-                    dayElement.classList.add('today');
-                }
-                if (isSelected) {
-                    dayElement.classList.add('selected');
-                }
+                // Ordine importante: extracted ha priorità su selected e today
                 if (isExtracted) {
                     dayElement.classList.add('extracted');
+                }
+                if (isToday && !isExtracted) {
+                    dayElement.classList.add('today');
+                }
+                if (isSelected && !isExtracted) {
+                    dayElement.classList.add('selected');
                 }
                 
                 // Non permettere selezione di date future
