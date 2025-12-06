@@ -1595,8 +1595,13 @@ def analyze_odata_data(records):
 
 @app.route('/api/estrai_e_analizza', methods=['POST'])
 def estrai_e_analizza():
-    """API endpoint per estrarre dati OData, analizzarli e restituirli (senza salvare JSON)
-    Usa la cache se l'API non restituisce dati (es. per date oltre 7 giorni)"""
+    """API endpoint per estrarre dati OData, analizzarli e restituirli
+    SEMPRE salva il JSON dopo l'analisi
+    Logica:
+    - Oggi/Ieri: sempre chiamata API diretta e salva JSON
+    - 2-7 giorni fa: chiamata API, se restituisce dati salva JSON
+    - Oltre 7 giorni: solo JSON (non chiama API)
+    """
     try:
         data = request.get_json()
         date_str = data.get('date')
@@ -1605,22 +1610,38 @@ def estrai_e_analizza():
         if not date_str:
             return jsonify({'error': 'Data non specificata'}), 400
         
-        # Usa la stessa data per inizio e fine
-        date_debut = date_str
-        date_fin = date_str
-        date_field = 'LaunchDate'
-        
-        # Converti le date
+        # Converti la data
         try:
-            date_start = datetime.strptime(date_debut, '%Y-%m-%d').date()
-            date_end = datetime.strptime(date_fin, '%Y-%m-%d').date()
+            date_start = datetime.strptime(date_str, '%Y-%m-%d').date()
         except ValueError:
             return jsonify({'error': 'Formato data non valido. Usa YYYY-MM-DD'}), 400
         
-        # Controlla se esiste un JSON salvato per questa data (come fallback)
+        # Calcola differenza giorni da oggi
+        today = date.today()
+        days_diff = (today - date_start).days
+        
+        # Controlla se esiste un JSON salvato (cache)
         json_data = get_json_extraction(date_str, site)
-        if json_data:
-            app.logger.info(f"Trovato JSON salvato per {date_str}")
+        
+        # LOGICA: Oltre 7 giorni → solo JSON (cache), non chiamare API
+        if days_diff > 7:
+            app.logger.info(f"Data {date_str} è oltre 7 giorni (diff: {days_diff} giorni) → uso solo JSON cache")
+            if json_data:
+                result = json_data.copy()
+                result['from_json'] = True
+                result['api_available'] = False
+                result['message'] = 'Dati dal JSON salvato (data oltre 7 giorni, API non disponibile)'
+                return jsonify(result)
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': f'Data oltre 7 giorni e nessun JSON salvato disponibile. L\'API OData mantiene solo gli ultimi 7 giorni.',
+                    'date': date_str
+                }), 404
+        
+        # LOGICA: Oggi/Ieri → sempre chiamata API diretta
+        # LOGICA: 2-7 giorni fa → chiamata API con fallback a JSON
+        # Per entrambi i casi, chiamiamo l'API
         
         # Carica configurazione OData
         config = load_odata_config()
@@ -1708,36 +1729,56 @@ def estrai_e_analizza():
                 # Errore nel parsing JSON
                 pass
         
-        # Se l'API non ha restituito dati, usa JSON salvato se disponibile
+        # Se l'API non ha restituito dati
         if not api_has_data:
-            if json_data:
-                app.logger.info(f"API non ha restituito dati per {date_str}, uso JSON salvato")
-                result = json_data.copy()
-                result['from_json'] = True
-                result['api_available'] = False
-                return jsonify(result)
-            else:
-                # Nessun dato dall'API e nessun JSON disponibile
-                if response.status_code != 200:
-                    error_msg = f"Errore HTTP {response.status_code}"
-                    if response.text:
-                        error_msg += f": {response.text[:500]}"
-                    app.logger.warning(f"Errore API e nessun JSON disponibile per {date_str}: {error_msg}")
-                    return jsonify({
-                        'error': error_msg,
-                        'from_json': False,
-                        'json_available': False,
-                        'message': 'Nessun dato disponibile dall\'API e nessuna estrazione precedente salvata per questa data.'
-                    }), response.status_code
+            # Se è oggi o ieri, dobbiamo sempre avere dati dall'API
+            if is_today_or_yesterday(date_str):
+                app.logger.warning(f"API non ha restituito dati per {date_str} (oggi/ieri) - questo non dovrebbe accadere")
+                # Usa JSON se disponibile, altrimenti errore
+                if json_data:
+                    app.logger.info(f"Usando JSON salvato per {date_str} (oggi/ieri) come fallback")
+                    result = json_data.copy()
+                    result['from_json'] = True
+                    result['api_available'] = False
+                    result['message'] = 'Nessun dato dall\'API per oggi/ieri, uso JSON salvato'
+                    return jsonify(result)
                 else:
-                    app.logger.info(f"API restituita vuota per {date_str}, nessun JSON disponibile")
                     return jsonify({
-                        'error': 'Nessun dato disponibile per questa data',
-                        'from_json': False,
-                        'json_available': False,
-                        'count': 0,
-                        'message': 'L\'API non ha restituito dati per questa data e non esiste una estrazione precedente salvata.'
+                        'success': False,
+                        'error': 'Nessun dato disponibile dall\'API per oggi/ieri. Riprova più tardi.',
+                        'date': date_str
                     }), 404
+            else:
+                # Per 2-7 giorni fa, usa JSON se disponibile
+                if json_data:
+                    app.logger.info(f"API non ha restituito dati per {date_str}, uso JSON salvato")
+                    result = json_data.copy()
+                    result['from_json'] = True
+                    result['api_available'] = False
+                    result['message'] = 'Nessun dato dall\'API, uso JSON salvato'
+                    return jsonify(result)
+                else:
+                    # Nessun dato dall'API e nessun JSON disponibile
+                    if response.status_code != 200:
+                        error_msg = f"Errore HTTP {response.status_code}"
+                        if response.text:
+                            error_msg += f": {response.text[:500]}"
+                        app.logger.warning(f"Errore API e nessun JSON disponibile per {date_str}: {error_msg}")
+                        return jsonify({
+                            'success': False,
+                            'error': error_msg,
+                            'date': date_str,
+                            'message': 'Nessun dato disponibile dall\'API e nessuna estrazione precedente salvata per questa data.'
+                        }), response.status_code
+                    else:
+                        app.logger.info(f"API restituita vuota per {date_str}, nessun JSON disponibile")
+                        return jsonify({
+                            'success': False,
+                            'error': 'Nessun dato disponibile per questa data',
+                            'date': date_str,
+                            'count': 0,
+                            'message': 'L\'API non ha restituito dati per questa data e non esiste una estrazione precedente salvata.'
+                        }), 404
         
         # Se arriviamo qui, l'API ha restituito dati - continua con l'elaborazione normale
         # Carica anche i dati dalla tabella Loadings per ottenere LoadingName
