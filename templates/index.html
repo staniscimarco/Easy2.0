@@ -76,6 +76,10 @@
                                 <i class="bi bi-file-earmark-spreadsheet me-2"></i>
                                 Clicca per selezionare il file CSV da trasformare
                             </div>
+                            <small class="text-muted d-block mt-2">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Limite massimo: 4.5MB (limite Vercel). Per file più grandi, dividili in parti più piccole.
+                            </small>
                         </div>
                         <button type="submit" class="btn btn-success w-100" id="transform-btn" {% if not anagrafica_loaded %}disabled{% endif %}>
                             <i class="bi bi-magic"></i>
