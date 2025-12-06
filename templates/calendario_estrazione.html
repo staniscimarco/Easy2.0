@@ -26,55 +26,28 @@
         .calendar-wrapper {
             max-width: 700px;
             margin: 0 auto;
-            background: #f8f9fa;
-            padding: 30px;
-            border-radius: 10px;
-        }
-        
-        @media (max-width: 768px) {
-            .calendar-wrapper {
-                padding: 15px;
-                margin: 0 10px;
-            }
-            
-            .calendar-grid {
-                gap: 4px;
-            }
-            
-            .calendar-day {
-                font-size: 0.9rem;
-                min-height: 35px;
-            }
-            
-            .calendar-day-header {
-                font-size: 0.75rem;
-                padding: 8px 4px;
-            }
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
         
         .calendar-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            font-size: 1.3em;
-            color: #495057;
-            font-weight: 600;
+            margin-bottom: 1.5rem;
         }
         
         .month-nav {
             background: #00457d;
             color: white;
             border: none;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            font-size: 1.5em;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
             cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
         }
         
         .month-nav:hover {
@@ -82,19 +55,25 @@
             transform: scale(1.1);
         }
         
+        #current-month-year {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #00457d;
+        }
+        
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
             gap: 8px;
-            margin-bottom: 20px;
+            margin-top: 1rem;
         }
         
         .calendar-day-header {
             text-align: center;
-            font-weight: bold;
-            color: #00457d;
-            padding: 10px;
-            font-size: 0.9em;
+            font-weight: 600;
+            color: #6c757d;
+            padding: 0.5rem;
+            font-size: 0.9rem;
         }
         
         .calendar-day {
@@ -105,56 +84,82 @@
             border: 2px solid #e9ecef;
             border-radius: 8px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s ease;
             background: white;
-            font-weight: 500;
+            font-weight: 600;
+            color: #495057;
             position: relative;
             text-align: center;
-            min-height: 40px;
         }
         
-        .calendar-day:hover:not(.disabled):not(.selected) {
+        .calendar-day:hover:not(.disabled):not(.selected):not(.extracted) {
             background: #f0f0f0;
             border-color: #00457d;
         }
         
         .calendar-day.disabled {
-            color: #ccc;
+            opacity: 0.3;
             cursor: not-allowed;
             background: #f8f9fa;
-        }
-        
-        .calendar-day.today {
-            border-color: #00457d;
-            font-weight: bold;
-        }
-        
-        .calendar-day.selected {
-            background: #00457d;
-            color: white;
-            border-color: #0056b3;
         }
         
         .calendar-day.extracted {
             background: #28a745 !important;
             color: white !important;
-            border-color: #218838 !important;
-            z-index: 2;
+            border-color: #20c997 !important;
         }
         
         .calendar-day.extracted:hover {
             background: #218838 !important;
         }
         
+        .calendar-day.selected {
+            background: #00457d;
+            color: white;
+            border-color: #0056b3;
+            transform: scale(1.1);
+        }
+        
         /* Priorità: extracted > selected > today */
         .calendar-day.extracted.selected {
             background: #28a745 !important;
             color: white !important;
+            border-color: #20c997 !important;
         }
         
         .calendar-day.extracted.today {
             background: #28a745 !important;
             color: white !important;
+            border-color: #20c997 !important;
+        }
+        
+        @media (max-width: 768px) {
+            .calendar-wrapper {
+                padding: 1rem;
+                margin: 0 10px;
+            }
+            
+            .calendar-grid {
+                gap: 4px;
+            }
+            
+            .calendar-day {
+                font-size: 0.85rem;
+            }
+            
+            .calendar-day-header {
+                font-size: 0.75rem;
+                padding: 0.4rem 0.2rem;
+            }
+            
+            #current-month-year {
+                font-size: 1.2rem;
+            }
+            
+            .month-nav {
+                padding: 0.4rem 0.8rem;
+                font-size: 1rem;
+            }
         }
         
         .info-box {
@@ -1434,15 +1439,17 @@
                 dayElement.className = 'calendar-day';
                 dayElement.textContent = day;
                 
-                // Ordine importante: extracted ha priorità su selected e today
+                // Ordine importante: extracted ha priorità su selected e today (come nel calendario salvataggio)
                 if (isExtracted) {
                     dayElement.classList.add('extracted');
                 }
-                if (isToday && !isExtracted) {
-                    dayElement.classList.add('today');
-                }
+                
                 if (isSelected && !isExtracted) {
                     dayElement.classList.add('selected');
+                }
+                
+                if (isToday) {
+                    dayElement.style.borderWidth = '3px';
                 }
                 
                 // Non permettere selezione di date future
@@ -1506,18 +1513,25 @@
                 // Aggiungi la data al set delle date estratte
                 if (dateStr) {
                     extractedDates.add(dateStr);
-                    // Ricarica le estrazioni per assicurarsi che il calendario sia aggiornato
+                    // Aggiorna immediatamente il calendario senza ricaricare
+                    renderCalendar();
+                    console.log('Calendario aggiornato immediatamente dopo estrazione completata');
+                    
+                    // Poi ricarica le estrazioni per sincronizzare
                     loadExtractions().then(() => {
                         renderCalendar();
-                        console.log('Calendario aggiornato dopo estrazione completata');
+                        console.log('Calendario sincronizzato con estrazioni dal server');
                     }).catch(err => {
                         console.error('Errore nel ricaricare estrazioni:', err);
-                        // Aggiorna comunque il calendario con la data aggiunta
-                        renderCalendar();
                     });
                 }
             }
         });
+        
+        // Polling periodico per aggiornare le estrazioni (ogni 30 secondi)
+        setInterval(() => {
+            loadExtractions();
+        }, 30000); // 30 secondi
         
         // Aggiungi listener per il pulsante stop
         const stopBtn = document.getElementById('stop-refresh-btn');
