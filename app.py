@@ -457,7 +457,7 @@ def save_odata_config(config):
 
 
 def get_json_extraction(date_str, site='TST - EDC Torino'):
-    """Recupera un'estrazione dal file JSON più recente per quella data"""
+    """Recupera un'estrazione dal file JSON più recente per quella data (cache)"""
     uploads_dir = app.config['UPLOAD_FOLDER']
     if not os.path.exists(uploads_dir):
         return None
@@ -487,12 +487,34 @@ def get_json_extraction(date_str, site='TST - EDC Torino'):
                 json_data = json.load(f)
                 # Verifica che contenga i dati analizzati
                 if 'data' in json_data or 'statistics' in json_data:
-                    app.logger.info(f"Trovato JSON per {date_str}: {filename}")
+                    app.logger.info(f"Trovato JSON in cache per {date_str}: {filename}")
                     return json_data
         except Exception as e:
             app.logger.warning(f"Errore nel caricamento JSON {filename}: {e}")
     
     return None
+
+
+def is_within_days(date_str, days=7):
+    """Verifica se una data è entro N giorni da oggi"""
+    try:
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        today = date.today()
+        days_diff = (today - target_date).days
+        return days_diff <= days
+    except:
+        return False
+
+
+def is_today_or_yesterday(date_str):
+    """Verifica se la data è oggi o ieri"""
+    try:
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        today = date.today()
+        yesterday = today - timedelta(days=1)
+        return target_date == today or target_date == yesterday
+    except:
+        return False
 
 
 def save_json_extraction(date_str, site, analysis_result):
@@ -1841,7 +1863,11 @@ def estrai_e_analizza():
 @app.route('/risultati/<date_str>')
 def risultati(date_str):
     """Pagina a tutto schermo per visualizzare i risultati analizzati per una data specifica
-    Prima controlla JSON salvato, poi tenta chiamata OData con timeout molto breve"""
+    Logica:
+    - Oggi/Ieri: sempre chiamata API diretta
+    - 2-7 giorni fa: chiamata API con fallback a JSON
+    - Oltre 7 giorni: solo JSON (cache)
+    """
     try:
         app.logger.info(f"=== INIZIO estrazione risultati per data: {date_str} ===")
         
@@ -1856,20 +1882,50 @@ def risultati(date_str):
             flash('Formato data non valido', 'error')
             return redirect(url_for('calendario_estrazione'))
         
-        # PRIMA: Controlla se esiste un JSON salvato per questa data
-        # Su Render, è meglio usare sempre JSON salvati per evitare timeout
-        json_data = get_json_extraction(date_str, site)
-        if json_data:
-            app.logger.info(f"Trovato JSON salvato per {date_str}, uso quello (evito chiamata OData su Render)")
-            result = json_data.copy()
-            result['from_json'] = True
-            result['api_available'] = False
-            result['message'] = 'Dati dal JSON salvato (estrazione precedente)'
-            return render_template('risultati.html', data=result)
+        # Calcola differenza giorni da oggi
+        today = date.today()
+        days_diff = (today - date_start).days
         
-        # Se non c'è JSON, tenta chiamata OData ma con timeout MOLTO breve (5 secondi)
-        # Su Render free tier, le chiamate OData sono troppo lente
-        app.logger.warning(f"Nessun JSON salvato per {date_str}, tento chiamata OData (timeout 5s - Render può essere lento)")
+        # Controlla se esiste un JSON salvato (cache)
+        json_data = get_json_extraction(date_str, site)
+        
+        # LOGICA: Oggi o Ieri → sempre chiamata API diretta
+        if is_today_or_yesterday(date_str):
+            app.logger.info(f"Data {date_str} è oggi o ieri (diff: {days_diff} giorni) → SEMPRE chiamata API diretta")
+            # Non usare cache, sempre API
+        
+        # LOGICA: Oltre 7 giorni → solo JSON (cache), non chiamare API
+        elif days_diff > 7:
+            app.logger.info(f"Data {date_str} è oltre 7 giorni (diff: {days_diff} giorni) → uso solo JSON cache")
+            if json_data:
+                result = json_data.copy()
+                result['from_json'] = True
+                result['api_available'] = False
+                result['message'] = f'Dati dal JSON salvato (data oltre 7 giorni, API non disponibile)'
+                return render_template('risultati.html', data=result)
+            else:
+                error_data = {
+                    'success': False,
+                    'error': f'Data oltre 7 giorni e nessun JSON salvato disponibile. L\'API OData mantiene solo gli ultimi 7 giorni.',
+                    'date': date_str,
+                    'statistics': {
+                        'totali': {
+                            'totale_pezzi': 0, 'pezzi_checkati': 0, 'pezzi_da_checkare': 0,
+                            'pezzi_accessori': 0, 'pezzi_crossdock': 0, 'totale_giri': 0,
+                            'giri_completati': 0, 'giri_non_completati': 0,
+                            'percentuale_completamento': 0, 'percentuale_completamento_giri': 0
+                        },
+                        'per_giro': [], 'per_cc': []
+                    },
+                    'details': {}, 'accessori_details': {}, 'crossdock_details': {},
+                    'clienti_per_giro': {}, 'product_search': {}, 'product_descriptions': {}
+                }
+                return render_template('risultati.html', data=error_data)
+        
+        # LOGICA: 2-7 giorni fa → chiamata API con fallback a JSON
+        else:
+            app.logger.info(f"Data {date_str} è tra 2-7 giorni fa (diff: {days_diff} giorni) → chiamata API con fallback a JSON")
+            # Continua con chiamata API, useremo JSON come fallback se API fallisce
         
         # Carica configurazione OData
         config = load_odata_config()
@@ -2155,7 +2211,7 @@ def risultati(date_str):
                 }
                 return render_template('risultati.html', data=error_data)
         
-        # Aggiungi informazioni e salva SEMPRE in JSON
+        # Aggiungi informazioni e salva SEMPRE in JSON (cache)
         analysis_result['date'] = date_str
         analysis_result['site'] = site
         analysis_result['extraction_date'] = datetime.now().isoformat()
@@ -2163,14 +2219,16 @@ def risultati(date_str):
         analysis_result['from_json'] = False
         analysis_result['api_available'] = True
         
-        # Salva SEMPRE in JSON per mantenere lo storico
-        app.logger.info(f"Tentativo di salvataggio JSON per {date_str}")
+        # Salva SEMPRE in JSON per mantenere lo storico (cache)
+        # Questo permette di avere dati anche oltre i 7 giorni dell'API
+        app.logger.info(f"Salvataggio JSON (cache) per {date_str}")
         saved_filename = save_json_extraction(date_str, site, analysis_result)
         if saved_filename:
             analysis_result['saved_filename'] = saved_filename
-            app.logger.info(f"JSON salvato con successo: {saved_filename}")
+            analysis_result['message'] = 'Dati aggiornati dall\'API e salvati in cache'
+            app.logger.info(f"JSON cache salvato con successo: {saved_filename}")
         else:
-            app.logger.warning(f"Impossibile salvare JSON per {date_str}, ma continuo comunque")
+            app.logger.warning(f"Impossibile salvare JSON cache per {date_str}, ma continuo comunque")
         
         app.logger.info(f"Rendering template risultati per {date_str}")
         return render_template('risultati.html', data=analysis_result)
@@ -2205,14 +2263,14 @@ def risultati(date_str):
         app.logger.error(f"ERRORE richiesta OData per {date_str}: {e}")
         app.logger.error(f"Traceback: {traceback.format_exc()}")
         
-        # Prova a usare JSON salvato
-        json_data = get_json_extraction(date_str, 'TST - EDC Torino')
+        # Prova a usare JSON salvato (cache) come fallback
+        json_data = get_json_extraction(date_str, site)
         if json_data:
-            app.logger.info(f"Usando JSON salvato dopo errore richiesta per {date_str}")
+            app.logger.info(f"Errore OData per {date_str}, uso JSON cache salvato")
             result = json_data.copy()
             result['from_json'] = True
             result['api_available'] = False
-            result['error'] = f'Errore di connessione OData: {str(e)}, dati dal JSON salvato'
+            result['error'] = f'Errore di connessione OData: {str(e)}, dati dal JSON cache salvato'
             return render_template('risultati.html', data=result)
         
         # Nessun JSON disponibile
