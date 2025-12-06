@@ -12,7 +12,14 @@ import pandas as pd
 app = Flask(__name__)
 # Usa la secret key da variabile d'ambiente o una di default per sviluppo
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
-app.config['UPLOAD_FOLDER'] = 'uploads'
+
+# Su Vercel (serverless), usa /tmp per i file (filesystem è read-only tranne /tmp)
+# In locale o su altri hosting, usa la cartella uploads
+if os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV'):
+    app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
+else:
+    app.config['UPLOAD_FOLDER'] = 'uploads'
+
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 
 # Crea la cartella uploads se non esiste
