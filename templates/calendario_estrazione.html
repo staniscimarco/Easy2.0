@@ -1,0 +1,1473 @@
+{% extends "base.html" %}
+
+{% block title %}Calendario Estrazione Dati - Easyloading{% endblock %}
+
+{% block extra_css %}
+<style>
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+        
+        .calendar-section {
+            margin-bottom: 40px;
+        }
+        
+        .calendar-wrapper {
+            max-width: 700px;
+            margin: 0 auto;
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 10px;
+        }
+        
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            color: #495057;
+            font-weight: 600;
+        }
+        
+        .month-nav {
+            background: #00457d;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 1.5em;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .month-nav:hover {
+            background: #0056b3;
+            transform: scale(1.1);
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .calendar-day-header {
+            text-align: center;
+            font-weight: bold;
+            color: #00457d;
+            padding: 10px;
+            font-size: 0.9em;
+        }
+        
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+            font-weight: 500;
+            position: relative;
+        }
+        
+        .calendar-day:hover:not(.disabled):not(.selected) {
+            background: #f0f0f0;
+            border-color: #00457d;
+        }
+        
+        .calendar-day.disabled {
+            color: #ccc;
+            cursor: not-allowed;
+            background: #f8f9fa;
+        }
+        
+        .calendar-day.today {
+            border-color: #00457d;
+            font-weight: bold;
+        }
+        
+        .calendar-day.selected {
+            background: #00457d;
+            color: white;
+            border-color: #0056b3;
+        }
+        
+        .calendar-day.extracted {
+            background: #28a745 !important;
+            color: white !important;
+            border-color: #218838 !important;
+        }
+        
+        .calendar-day.extracted:hover {
+            background: #218838 !important;
+        }
+        
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 4px;
+        }
+        
+        .info-box p {
+            color: #555;
+            margin: 5px 0;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            display: none;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #00457d;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        
+        .data-display {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .data-display.active {
+            display: block;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card h3 {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .stat-card .value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .auto-refresh-indicator {
+            display: inline-block;
+            margin-left: 10px;
+            padding: 5px 10px;
+            background: #28a745;
+            color: white;
+            border-radius: 15px;
+            font-size: 0.85em;
+        }
+        
+        .auto-refresh-indicator.active {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #00457d;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-item .number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #00457d;
+        }
+        
+        .stat-item .label {
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="container fade-in">
+        <h1>📅 Calendario Estrazione Dati</h1>
+        <p class="subtitle">Seleziona una data per estrarre automaticamente i dati per Torino</p>
+        
+        <div id="alert-box" class="alert"></div>
+        
+        <div class="calendar-section">
+            <div class="calendar-wrapper">
+                <div class="calendar-header">
+                    <button id="prev-month" class="month-nav">‹</button>
+                    <span id="current-month-year"></span>
+                    <button id="next-month" class="month-nav">›</button>
+                </div>
+                
+                <div id="calendar-grid" class="calendar-grid"></div>
+                
+                <div class="calendar-legend" style="margin-top: 20px; text-align: center; font-size: 0.9em; color: #666;">
+                    <span style="display: inline-block; margin: 0 15px;">
+                        <span style="display: inline-block; width: 20px; height: 20px; background: #28a745; border-radius: 4px; vertical-align: middle; margin-right: 5px;"></span>
+                        Giorno elaborato
+                    </span>
+                    <span style="display: inline-block; margin: 0 15px;">
+                        <span style="display: inline-block; width: 20px; height: 20px; background: #00457d; border-radius: 4px; vertical-align: middle; margin-right: 5px;"></span>
+                        Giorno selezionato
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Estrazione in corso per la data selezionata...</p>
+        </div>
+        
+        <div class="data-display" id="data-display">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">
+                    📊 Dati Analizzati
+                    <span class="auto-refresh-indicator" id="auto-refresh-indicator" style="display: none;">
+                        🔄 Aggiornamento automatico ogni minuto
+                    </span>
+                </h2>
+                <button id="stop-refresh-btn" style="display: none; padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em;">
+                    ⏹️ Ferma Aggiornamento
+                </button>
+            </div>
+            
+            <!-- Statistiche Totali -->
+            <div class="row mb-4" id="statsCards"></div>
+            
+            <!-- Ricerca per Codice Prodotto -->
+            <div class="search-section" style="background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 30px;">
+                <h4 class="mb-3"><i class="bi bi-search me-2"></i>Ricerca per Codice Prodotto</h4>
+                <input type="text" 
+                       id="productSearch" 
+                       class="form-control form-control-lg" 
+                       placeholder="Inserisci il codice prodotto per trovare i giri dove deve ancora essere ancora effettuato il check...">
+                <div class="mt-3" id="searchResults"></div>
+            </div>
+            
+            <!-- Tabella Risultati -->
+            <div class="results-section" style="background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                <h4 class="mb-3"><i class="bi bi-table me-2"></i>Dettaglio per Route</h4>
+                <div class="table-responsive">
+                    <table class="table table-hover" style="margin-top: 20px; border-collapse: separate; border-spacing: 0; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 10px; overflow: hidden;">
+                        <thead style="background: linear-gradient(135deg, #00457d 0%, #0056b3 100%); color: white;">
+                            <tr>
+                                <th class="text-center" style="text-align: center; vertical-align: middle; padding: 18px 15px; font-weight: 600; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; border: none;">Route</th>
+                                <th class="text-center" style="text-align: center; vertical-align: middle; padding: 18px 15px; font-weight: 600; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; border: none;">Destinazione</th>
+                                <th class="text-center" style="text-align: center; vertical-align: middle; padding: 18px 15px; font-weight: 600; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; border: none;">Clienti</th>
+                                <th class="text-center" style="text-align: center; vertical-align: middle; padding: 18px 15px; font-weight: 600; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; border: none;">CC</th>
+                                <th class="text-center" style="text-align: center; vertical-align: middle; padding: 18px 15px; font-weight: 600; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; border: none;">Pezzi Previsti</th>
+                                <th class="text-center" style="text-align: center; vertical-align: middle; padding: 18px 15px; font-weight: 600; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; border: none;">Checked</th>
+                                <th class="text-center" style="text-align: center; vertical-align: middle; padding: 18px 15px; font-weight: 600; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; border: none;">To be Check</th>
+                                <th class="text-center" style="text-align: center; vertical-align: middle; padding: 18px 15px; font-weight: 600; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; border: none;">Accessori</th>
+                                <th class="text-center" style="text-align: center; vertical-align: middle; padding: 18px 15px; font-weight: 600; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; border: none;">Crossdock</th>
+                                <th class="text-center" style="text-align: center; vertical-align: middle; padding: 18px 15px; font-weight: 600; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; border: none;">% Completamento</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBody" style="background: white;">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        
+        <!-- Modal Dettagli -->
+        <div class="modal fade" id="detailsModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <div class="w-100 text-center">
+                            <div class="mb-2">
+                                <small class="text-muted" id="modalDate" style="font-size: 0.9rem;">--/--/----</small>
+                            </div>
+                            <h5 class="modal-title mb-0" id="modalTitle">Giro</h5>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="text-center mb-4" id="routeStats">
+                            <!-- Statistiche del giro -->
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>CAI</th>
+                                        <th>Cliente</th>
+                                        <th>Descrizione Articolo</th>
+                                        <th>Ubicazione</th>
+                                        <th>CC</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="detailsBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal per Accessori -->
+        <div class="modal fade" id="accessoriModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title w-100 text-center" id="accessoriModalTitle">Accessori - Giro</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="text-center mb-4" id="accessoriRouteStats">
+                            <!-- Statistiche accessori del giro -->
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>CAI</th>
+                                        <th>Cliente</th>
+                                        <th>Descrizione Articolo</th>
+                                        <th>Ubicazione</th>
+                                        <th>CC</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="accessoriBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal per Crossdock -->
+        <div class="modal fade" id="crossdockModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title w-100 text-center" id="crossdockModalTitle">Crossdock - Giro</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="text-center mb-4" id="crossdockRouteStats">
+                            <!-- Statistiche crossdock del giro -->
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>CAI</th>
+                                        <th>Cliente</th>
+                                        <th>Descrizione Articolo</th>
+                                        <th>Ubicazione</th>
+                                        <th>CC</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="crossdockBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal per Clienti -->
+        <div class="modal fade" id="clientiModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title w-100 text-center" id="clientiModalTitle">Clienti - Giro</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="text-center mb-4" id="clientiRouteStats">
+                            <!-- Statistiche clienti del giro -->
+                        </div>
+                        <div class="list-group" id="clientiBody">
+                            <!-- Lista clienti -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+        const alertBox = document.getElementById('alert-box');
+        const loading = document.getElementById('loading');
+        const calendarGrid = document.getElementById('calendar-grid');
+        const currentMonthYear = document.getElementById('current-month-year');
+        const prevMonthBtn = document.getElementById('prev-month');
+        const nextMonthBtn = document.getElementById('next-month');
+        
+        let currentDate = new Date();
+        let selectedDate = null;
+        let extractedDates = new Set(); // Set per memorizzare le date estratte
+        let isExtracting = false;
+        let autoRefreshInterval = null; // Intervallo per il polling automatico
+        let currentSelectedDateStr = null; // Data attualmente selezionata per il polling
+        
+        const monthNames = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+                           'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+        const dayNames = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+        
+        function showAlert(message, type) {
+            alertBox.textContent = message;
+            alertBox.className = `alert alert-${type}`;
+            alertBox.style.display = 'block';
+            setTimeout(() => {
+                alertBox.style.display = 'none';
+            }, 5000);
+        }
+        
+        function showLoading(show) {
+            if (show) {
+                loading.classList.add('active');
+            } else {
+                loading.classList.remove('active');
+            }
+        }
+        
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+            const indicator = document.getElementById('auto-refresh-indicator');
+            if (indicator) {
+                indicator.style.display = 'none';
+                indicator.classList.remove('active');
+            }
+            const stopBtn = document.getElementById('stop-refresh-btn');
+            if (stopBtn) {
+                stopBtn.style.display = 'none';
+            }
+            currentSelectedDateStr = null;
+        }
+        
+        function startAutoRefresh(dateStr) {
+            // Ferma il polling precedente se esiste
+            stopAutoRefresh();
+            
+            currentSelectedDateStr = dateStr;
+            
+            // Esegui immediatamente la prima chiamata
+            extractAndAnalyzeData(dateStr);
+            
+            // Poi esegui ogni minuto (60000 ms)
+            autoRefreshInterval = setInterval(() => {
+                extractAndAnalyzeData(dateStr);
+            }, 60000);
+            
+            // Mostra l'indicatore e il pulsante stop
+            const indicator = document.getElementById('auto-refresh-indicator');
+            if (indicator) {
+                indicator.style.display = 'inline-block';
+                indicator.classList.add('active');
+            }
+            const stopBtn = document.getElementById('stop-refresh-btn');
+            if (stopBtn) {
+                stopBtn.style.display = 'block';
+            }
+        }
+        
+        async function extractAndAnalyzeData(date) {
+            if (isExtracting) {
+                return; // Evita chiamate multiple
+            }
+            
+            isExtracting = true;
+            showLoading(true);
+            
+            try {
+                const response = await fetch('/api/estrai_e_analizza', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        date: date,
+                        site: 'TST - EDC Torino'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    console.log('Dati ricevuti con successo:', data);
+                    // Mostra i dati analizzati
+                    displayAnalyzedData(data);
+                    showAlert(`Dati aggiornati! ${data.count} record trovati`, 'success');
+                    // Aggiungi la data al set delle date estratte
+                    extractedDates.add(date);
+                    // Aggiorna il calendario
+                    renderCalendar();
+                } else {
+                    console.error('Errore nella risposta:', data);
+                    showAlert(data.error || 'Errore durante l\'estrazione', 'error');
+                }
+            } catch (error) {
+                showAlert('Errore di connessione: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+                isExtracting = false;
+            }
+        }
+        
+        let currentAnalysisData = null;
+        let detailsModal = null;
+        let accessoriModal = null;
+        let crossdockModal = null;
+        let clientiModal = null;
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return '--/--/----';
+            try {
+                if (dateStr.includes('-')) {
+                    const parts = dateStr.split('-');
+                    if (parts.length === 3) {
+                        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                    }
+                }
+                return dateStr;
+            } catch (error) {
+                return '--/--/----';
+            }
+        }
+        
+        function initializeModals() {
+            // Verifica che Bootstrap sia caricato
+            if (typeof bootstrap === 'undefined') {
+                console.error('Bootstrap non è caricato!');
+                return;
+            }
+            
+            const detailsModalElement = document.getElementById('detailsModal');
+            const accessoriModalElement = document.getElementById('accessoriModal');
+            const crossdockModalElement = document.getElementById('crossdockModal');
+            const clientiModalElement = document.getElementById('clientiModal');
+            
+            if (detailsModalElement && !detailsModal) {
+                detailsModal = new bootstrap.Modal(detailsModalElement);
+            }
+            if (accessoriModalElement && !accessoriModal) {
+                accessoriModal = new bootstrap.Modal(accessoriModalElement);
+            }
+            if (crossdockModalElement && !crossdockModal) {
+                crossdockModal = new bootstrap.Modal(crossdockModalElement);
+            }
+            if (clientiModalElement && !clientiModal) {
+                clientiModal = new bootstrap.Modal(clientiModalElement);
+            }
+        }
+        
+        function displayAnalyzedData(data) {
+            console.log('displayAnalyzedData chiamata con:', data);
+            currentAnalysisData = data;
+            const dataDisplay = document.getElementById('data-display');
+            const statsCards = document.getElementById('statsCards');
+            
+            console.log('dataDisplay:', dataDisplay);
+            console.log('statsCards:', statsCards);
+            
+            if (!dataDisplay || !statsCards) {
+                console.error('Elementi non trovati! dataDisplay:', dataDisplay, 'statsCards:', statsCards);
+                return;
+            }
+            
+            dataDisplay.classList.add('active');
+            initializeModals();
+            
+            // Mostra statistiche totali
+            const stats = data.statistics?.totali || {};
+            const dateStr = data.date || '';
+            
+            statsCards.innerHTML = `
+                ${dateStr ? `
+                <div class="col-12 mb-4">
+                    <div class="text-center">
+                        <h3 class="text-dark" style="font-weight: 700; letter-spacing: 2px; font-size: 2rem;">${formatDate(dateStr)}</h3>
+                    </div>
+                </div>
+                ` : ''}
+                <div class="col-md-3 mb-3">
+                    <div class="card stat-card text-white" style="background: linear-gradient(135deg, #0d6efd 0%, #0056b3 100%); box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3); border-radius: 15px; border: none;">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-subtitle mb-2" style="opacity: 0.9; font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">Totale Pezzi</h6>
+                                    <h2 class="card-title mb-0" style="color: #fff; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">${(stats.totale_pezzi || 0).toLocaleString()}</h2>
+                                </div>
+                                <i class="bi bi-box-seam" style="opacity: 0.8; font-size: 48px;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stat-card text-white bg-success" style="box-shadow: 0 4px 15px rgba(25, 135, 84, 0.3); border-radius: 15px; border: none;">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-subtitle mb-2" style="opacity: 0.9; font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">Checked</h6>
+                                    <h2 class="card-title mb-0" style="color: #d4edda; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">${(stats.pezzi_checkati || 0).toLocaleString()}</h2>
+                                </div>
+                                <i class="bi bi-check-circle" style="opacity: 0.8; font-size: 48px;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stat-card text-white bg-danger" style="box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3); border-radius: 15px; border: none;">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-subtitle mb-2" style="opacity: 0.9; font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">To be Check</h6>
+                                    <h2 class="card-title mb-0" style="color: #f8d7da; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">${(stats.pezzi_da_checkare || 0).toLocaleString()}</h2>
+                                </div>
+                                <i class="bi bi-x-circle" style="opacity: 0.8; font-size: 48px;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stat-card text-white" style="background: linear-gradient(135deg, #00457d 0%, #0056b3 100%); box-shadow: 0 4px 15px rgba(0, 69, 125, 0.3); border-radius: 15px; border: none;">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-subtitle mb-2" style="opacity: 0.9; font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">% Completamento</h6>
+                                    <h2 class="card-title mb-0" style="color: #e9ecef; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">${(stats.percentuale_completamento || 0).toFixed(2)}%</h2>
+                                </div>
+                                <i class="bi bi-percent" style="opacity: 0.8; font-size: 48px;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stat-card text-white" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); box-shadow: 0 4px 15px rgba(23, 162, 184, 0.3); border-radius: 15px; border: none;">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-subtitle mb-2" style="opacity: 0.9; font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">Giri Previsti</h6>
+                                    <h2 class="card-title mb-0" style="color: #d1ecf1; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">${(stats.totale_giri || 0).toLocaleString()}</h2>
+                                </div>
+                                <i class="bi bi-map" style="opacity: 0.8; font-size: 48px;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stat-card text-white bg-success" style="box-shadow: 0 4px 15px rgba(25, 135, 84, 0.3); border-radius: 15px; border: none;">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-subtitle mb-2" style="opacity: 0.9; font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">Giri Completati</h6>
+                                    <h2 class="card-title mb-0" style="color: #d4edda; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">${(stats.giri_completati || 0).toLocaleString()}</h2>
+                                </div>
+                                <i class="bi bi-check-circle-fill" style="opacity: 0.8; font-size: 48px;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stat-card text-white bg-warning" style="box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3); border-radius: 15px; border: none;">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-subtitle mb-2" style="opacity: 0.9; font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">Giri Non Completati</h6>
+                                    <h2 class="card-title mb-0" style="color: #fff3cd; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">${(stats.giri_non_completati || 0).toLocaleString()}</h2>
+                                </div>
+                                <i class="bi bi-exclamation-circle" style="opacity: 0.8; font-size: 48px;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stat-card text-white" style="background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%); box-shadow: 0 4px 15px rgba(32, 201, 151, 0.3); border-radius: 15px; border: none;">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-subtitle mb-2" style="opacity: 0.9; font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">Completamento Giri %</h6>
+                                    <h2 class="card-title mb-0" style="color: #d1ecf1; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">${(stats.percentuale_completamento_giri || 0).toFixed(2)}%</h2>
+                                </div>
+                                <i class="bi bi-graph-up" style="opacity: 0.8; font-size: 48px;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stat-card text-white" style="background: linear-gradient(135deg, #0dcaf0 0%, #087990 100%); box-shadow: 0 4px 15px rgba(13, 202, 240, 0.3); border-radius: 15px; border: none;">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-subtitle mb-2" style="opacity: 0.9; font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">Accessori</h6>
+                                    <h2 class="card-title mb-0" style="color: #d1ecf1; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">${(stats.pezzi_accessori || 0).toLocaleString()}</h2>
+                                </div>
+                                <i class="bi bi-box-seam" style="opacity: 0.8; font-size: 48px;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stat-card text-white" style="background: linear-gradient(135deg, #fd7e14 0%, #e55a00 100%); box-shadow: 0 4px 15px rgba(253, 126, 20, 0.3); border-radius: 15px; border: none;">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-subtitle mb-2" style="opacity: 0.9; font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">Crossdock</h6>
+                                    <h2 class="card-title mb-0" style="color: #fff3cd; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">${(stats.pezzi_crossdock || 0).toLocaleString()}</h2>
+                                </div>
+                                <i class="bi bi-truck" style="opacity: 0.8; font-size: 48px;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Aggiungi statistiche per CC
+            if (data.statistics && data.statistics.per_cc && data.statistics.per_cc.length > 0) {
+                const ccStats = data.statistics.per_cc;
+                const ccRow = document.createElement('div');
+                ccRow.className = 'row mt-4';
+                ccRow.innerHTML = `
+                    <div class="col-12">
+                        <h4 class="mb-3"><i class="bi bi-building me-2"></i>Statistiche per Centro di Costo</h4>
+                    </div>
+                `;
+                
+                ccStats.forEach(cc => {
+                    const ccColor = cc.cc === 'EUROMASTER' ? 'bg-info' : 
+                                   cc.cc === 'CAMSO' ? 'bg-warning' : 
+                                   'bg-primary';
+                    const col = document.createElement('div');
+                    col.className = 'col-md-4 mb-3';
+                    col.innerHTML = `
+                        <div class="card stat-card text-white ${ccColor}" style="box-shadow: 0 4px 15px rgba(0,0,0,0.2); border-radius: 15px; border: none;">
+                            <div class="card-body">
+                                <h5 class="card-title mb-3" style="font-weight: 700; text-transform: uppercase; letter-spacing: 1px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">${cc.cc}</h5>
+                                <div class="row text-center g-2">
+                                    <div class="col-2 px-1">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <small class="text-white-50 mb-1" style="font-size: 0.7rem; white-space: nowrap; font-weight: 600; text-transform: uppercase;">Previsti</small>
+                                            <h5 class="mb-0 fw-bold" style="color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.3rem;">${(cc.totale_pezzi || 0).toLocaleString()}</h5>
+                                        </div>
+                                    </div>
+                                    <div class="col-2 px-1">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <small class="text-white-50 mb-1" style="font-size: 0.7rem; white-space: nowrap; font-weight: 600; text-transform: uppercase;">Checked</small>
+                                            <h5 class="mb-0 fw-bold" style="color: #d4edda; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.3rem;">${(cc.pezzi_checkati || 0).toLocaleString()}</h5>
+                                        </div>
+                                    </div>
+                                    <div class="col-2 px-1">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <small class="text-white-50 mb-1" style="font-size: 0.7rem; white-space: nowrap; font-weight: 600; text-transform: uppercase;">To be Check</small>
+                                            <h5 class="mb-0 fw-bold" style="color: #f8d7da; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.3rem;">${(cc.pezzi_da_checkare || 0).toLocaleString()}</h5>
+                                        </div>
+                                    </div>
+                                    <div class="col-2 px-1">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <small class="text-white-50 mb-1" style="font-size: 0.7rem; white-space: nowrap; font-weight: 600; text-transform: uppercase;">Accessori</small>
+                                            <h5 class="mb-0 fw-bold" style="color: #d1ecf1; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.3rem;">${(cc.pezzi_accessori || 0).toLocaleString()}</h5>
+                                        </div>
+                                    </div>
+                                    <div class="col-2 px-1">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <small class="text-white-50 mb-1" style="font-size: 0.7rem; white-space: nowrap; font-weight: 600; text-transform: uppercase;">Crossdock</small>
+                                            <h5 class="mb-0 fw-bold" style="color: #fff3cd; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.3rem;">${(cc.pezzi_crossdock || 0).toLocaleString()}</h5>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    ccRow.appendChild(col);
+                });
+                statsCards.appendChild(ccRow);
+            }
+            
+            // Mostra tabella risultati
+            displayResults(data);
+            setupSearch(data);
+        }
+        
+        function displayResults(data) {
+            const resultsBody = document.getElementById('resultsBody');
+            if (!resultsBody) return;
+            
+            resultsBody.innerHTML = '';
+            
+            const statsPerGiro = (data.statistics?.per_giro || []).sort((a, b) => b.da_checkare - a.da_checkare);
+            
+            statsPerGiro.forEach(item => {
+                const row = document.createElement('tr');
+                const diff = item.da_checkare;
+                const percentuale = item.checkati === 0 ? 0 : item.percentuale;
+                const progressBar = `
+                    <div class="progress" style="height: 28px; position: relative; border-radius: 15px; background: #e9ecef; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
+                        <div class="progress-bar ${percentuale === 100 ? 'bg-success' : percentuale >= 50 ? 'bg-warning' : percentuale > 0 ? 'bg-danger' : 'bg-dark'}" 
+                             role="progressbar" 
+                             style="width: ${percentuale > 0 ? percentuale : 0}%; border-radius: 15px; font-weight: 600; font-size: 12px; display: flex; align-items: center; justify-content: center; transition: width 0.6s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                            ${percentuale > 0 ? percentuale.toFixed(2) + '%' : ''}
+                        </div>
+                        ${percentuale === 0 ? '<span style="position: absolute; left: 50%; transform: translateX(-50%); color: #6c757d; font-weight: 600; font-size: 12px; line-height: 28px;">0%</span>' : ''}
+                    </div>
+                `;
+                
+                const getCCColor = (cc) => {
+                    if (cc === 'EUROMASTER') return 'bg-info';
+                    if (cc === 'CAMSO') return 'bg-warning';
+                    return 'bg-primary';
+                };
+                
+                let ccBadges = '';
+                const ccList = Array.isArray(item.cc) ? item.cc : [item.cc || 'MICHELIN'];
+                ccList.forEach(cc => {
+                    const ccColor = getCCColor(cc);
+                    ccBadges += `<span class="badge ${ccColor} text-white me-1" style="padding: 8px 14px; font-size: 13px; font-weight: 600; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">${cc}</span>`;
+                });
+                
+                row.innerHTML = `
+                    <td class="text-center" style="text-align: center; vertical-align: middle; padding: 16px 15px; border-bottom: 1px solid #e9ecef; font-size: 14px;">
+                        <span style="color: #fff; font-weight: 700; font-size: 1.1rem; background: linear-gradient(135deg, #0d6efd 0%, #0056b3 100%); padding: 8px 16px; border-radius: 20px; display: inline-block; box-shadow: 0 3px 8px rgba(13, 110, 253, 0.3); letter-spacing: 1px; text-transform: uppercase;">${item.route}</span>
+                    </td>
+                    <td class="text-center" style="text-align: center; vertical-align: middle; padding: 16px 15px; border-bottom: 1px solid #e9ecef; font-size: 14px;">
+                        <span style="color: #6c757d; font-weight: 600; background: linear-gradient(135deg, #e9ecef 0%, #f8f9fa 100%); padding: 4px 10px; border-radius: 12px; display: inline-block; font-size: 0.9rem;">${item.destinazione || ''}</span>
+                    </td>
+                    <td style="text-align: center; vertical-align: middle; padding: 16px 15px; border-bottom: 1px solid #e9ecef; font-size: 14px;">
+                        ${(item.clienti || 0) > 0 
+                            ? `<button class="btn btn-outline-purple btn-sm btn-clienti" data-route="${item.route}" style="font-weight: 600; cursor: pointer; color: #6f42c1; border-color: #6f42c1; background: linear-gradient(135deg, #e7d5ff 0%, #f3e5f5 100%); border-radius: 20px; padding: 6px 16px;">
+                                <i class="bi bi-people me-1"></i>${item.clienti || 0}
+                               </button>`
+                            : `<span style="color: #6f42c1; font-weight: 700; font-size: 1.1rem; background: linear-gradient(135deg, #e7d5ff 0%, #f3e5f5 100%); padding: 4px 10px; border-radius: 12px; display: inline-block;">${item.clienti || 0}</span>`}
+                    </td>
+                    <td class="text-center" style="text-align: center; vertical-align: middle; padding: 16px 15px; border-bottom: 1px solid #e9ecef; font-size: 14px;">${ccBadges}</td>
+                    <td class="text-center" style="text-align: center; vertical-align: middle; padding: 16px 15px; border-bottom: 1px solid #e9ecef; font-size: 14px;">
+                        <span style="color: #0056b3; font-weight: 700; font-size: 1.1rem;">${item.totale}</span>
+                    </td>
+                    <td class="text-center" style="text-align: center; vertical-align: middle; padding: 16px 15px; border-bottom: 1px solid #e9ecef; font-size: 14px;">
+                        <span class="badge bg-success" style="font-size: 0.95rem; padding: 6px 12px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">${item.checkati}</span>
+                    </td>
+                    <td class="text-center" style="text-align: center; vertical-align: middle; padding: 16px 15px; border-bottom: 1px solid #e9ecef; font-size: 14px;">
+                        ${diff > 0 
+                            ? `<button class="btn btn-outline-warning btn-sm btn-details" data-route="${item.route}" style="font-weight: 600; cursor: pointer; border-radius: 20px; padding: 6px 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                                <i class="bi bi-eye me-1"></i>${diff}
+                               </button>`
+                            : `<span class="badge bg-success" style="font-size: 0.95rem; padding: 6px 12px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">${diff}</span>`}
+                    </td>
+                    <td class="text-center" style="text-align: center; vertical-align: middle; padding: 16px 15px; border-bottom: 1px solid #e9ecef; font-size: 14px;">
+                        ${(item.pezzi_accessori || 0) > 0 
+                            ? `<button class="btn btn-outline-info btn-sm btn-accessori" data-route="${item.route}" style="font-weight: 600; cursor: pointer; border-radius: 20px; padding: 6px 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                                <i class="bi bi-box-seam me-1"></i>${item.pezzi_accessori || 0}
+                               </button>`
+                            : `<span class="badge bg-info" style="font-size: 0.95rem; padding: 6px 12px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">${item.pezzi_accessori || 0}</span>`}
+                    </td>
+                    <td class="text-center" style="text-align: center; vertical-align: middle; padding: 16px 15px; border-bottom: 1px solid #e9ecef; font-size: 14px;">
+                        ${(item.pezzi_crossdock || 0) > 0 
+                            ? `<button class="btn btn-outline-danger btn-sm btn-crossdock" data-route="${item.route}" style="font-weight: 600; cursor: pointer; border-radius: 20px; padding: 6px 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                                <i class="bi bi-truck me-1"></i>${item.pezzi_crossdock || 0}
+                               </button>`
+                            : `<span class="badge bg-danger" style="font-size: 0.95rem; padding: 6px 12px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">${item.pezzi_crossdock || 0}</span>`}
+                    </td>
+                    <td class="text-center" style="text-align: center; vertical-align: middle; padding: 16px 15px; border-bottom: 1px solid #e9ecef; font-size: 14px;">${progressBar}</td>
+                `;
+                
+                if (diff > 0) {
+                    const btn = row.querySelector('.btn-details');
+                    if (btn) {
+                        btn.addEventListener('click', () => showDetails(item.route));
+                    }
+                }
+                
+                if ((item.clienti || 0) > 0) {
+                    const btnClienti = row.querySelector('.btn-clienti');
+                    if (btnClienti) {
+                        btnClienti.addEventListener('click', () => {
+                            showClientiDetails(item.route);
+                            if (clientiModal) clientiModal.show();
+                        });
+                    }
+                }
+                
+                if ((item.pezzi_accessori || 0) > 0) {
+                    const btnAccessori = row.querySelector('.btn-accessori');
+                    if (btnAccessori) {
+                        btnAccessori.addEventListener('click', () => {
+                            showAccessoriDetails(item.route);
+                            if (accessoriModal) accessoriModal.show();
+                        });
+                    }
+                }
+                
+                if ((item.pezzi_crossdock || 0) > 0) {
+                    const btnCrossdock = row.querySelector('.btn-crossdock');
+                    if (btnCrossdock) {
+                        btnCrossdock.addEventListener('click', () => {
+                            showCrossdockDetails(item.route);
+                            if (crossdockModal) crossdockModal.show();
+                        });
+                    }
+                }
+                
+                resultsBody.appendChild(row);
+            });
+        }
+        
+        function setupSearch(data) {
+            const productSearch = document.getElementById('productSearch');
+            const searchResults = document.getElementById('searchResults');
+            
+            if (!productSearch || !searchResults) return;
+            
+            productSearch.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.trim().toUpperCase();
+                searchResults.innerHTML = '';
+                
+                if (!searchTerm || !data.product_search) return;
+                
+                const matchingRoutes = [];
+                for (const [codice, routes] of Object.entries(data.product_search)) {
+                    if (codice.toUpperCase().includes(searchTerm)) {
+                        for (const [route, count] of Object.entries(routes)) {
+                            matchingRoutes.push({ route, codice, count });
+                        }
+                    }
+                }
+                
+                if (matchingRoutes.length === 0) {
+                    searchResults.innerHTML = '<div class="alert alert-info">Nessun giro trovato per questo codice prodotto</div>';
+                } else {
+                    matchingRoutes.forEach(item => {
+                        const resultDiv = document.createElement('div');
+                        resultDiv.className = 'search-result-item';
+                        resultDiv.style.cssText = 'padding: 15px; margin: 10px 0; background: #f8f9fa; border-left: 4px solid #00457d; border-radius: 8px; cursor: pointer; transition: all 0.3s ease;';
+                        resultDiv.innerHTML = `
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="text-primary">Giro: ${item.route}</strong>
+                                    <div class="text-muted small">
+                                        <strong>CAI:</strong> ${item.codice}
+                                    </div>
+                                </div>
+                                <span class="badge bg-danger">${item.count} pezzo/i</span>
+                            </div>
+                        `;
+                        resultDiv.addEventListener('click', () => {
+                            showDetails(item.route);
+                            if (detailsModal) detailsModal.show();
+                        });
+                        searchResults.appendChild(resultDiv);
+                    });
+                }
+            });
+        }
+        
+        function showDetails(route) {
+            if (!currentAnalysisData || !currentAnalysisData.details) return;
+            
+            const details = currentAnalysisData.details[route] || [];
+            const modalTitle = document.getElementById('modalTitle');
+            const modalDate = document.getElementById('modalDate');
+            const detailsBody = document.getElementById('detailsBody');
+            const routeStats = document.getElementById('routeStats');
+            
+            if (modalTitle) modalTitle.textContent = route;
+            if (modalDate && currentAnalysisData.date) modalDate.textContent = formatDate(currentAnalysisData.date);
+            
+            const routeData = currentAnalysisData.statistics.per_giro.find(g => g.route === route);
+            if (routeStats && routeData) {
+                routeStats.innerHTML = `
+                    <div class="row justify-content-center">
+                        <div class="col-auto">
+                            <div class="card border-primary" style="min-width: 200px;">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">Totale Pezzi</h6>
+                                    <h3 class="card-title mb-0">${routeData.totale}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="card border-success" style="min-width: 200px;">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">Checked</h6>
+                                    <h3 class="card-title mb-0 text-success">${routeData.checkati}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="card border-warning" style="min-width: 200px;">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">To be Check</h6>
+                                    <h3 class="card-title mb-0 text-warning">${routeData.da_checkare}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            if (detailsBody) {
+                detailsBody.innerHTML = '';
+                if (details.length === 0) {
+                    detailsBody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Nessun pezzo da checkare</td></tr>';
+                } else {
+                    details.forEach(detail => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><strong>${detail.codice_prodotto || ''}</strong></td>
+                            <td>${detail.cliente || ''}</td>
+                            <td>${detail.descrizione || ''}</td>
+                            <td>${detail.ubicazione || 'N/A'}</td>
+                            <td>${detail.cc || 'MICHELIN'}</td>
+                        `;
+                        detailsBody.appendChild(row);
+                    });
+                }
+            }
+            
+            if (detailsModal) detailsModal.show();
+        }
+        
+        function showAccessoriDetails(route) {
+            if (!currentAnalysisData || !currentAnalysisData.accessori_details) return;
+            
+            const accessori = currentAnalysisData.accessori_details[route] || [];
+            const modalTitle = document.getElementById('accessoriModalTitle');
+            const accessoriBody = document.getElementById('accessoriBody');
+            const routeStats = document.getElementById('accessoriRouteStats');
+            
+            if (modalTitle) modalTitle.textContent = `Accessori - ${route}`;
+            
+            const routeData = currentAnalysisData.statistics.per_giro.find(g => g.route === route);
+            if (routeStats && routeData) {
+                routeStats.innerHTML = `
+                    <div class="row justify-content-center">
+                        <div class="col-auto">
+                            <div class="card border-primary" style="min-width: 200px;">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">Totale Pezzi</h6>
+                                    <h3 class="card-title mb-0">${routeData.totale}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="card border-secondary" style="min-width: 200px;">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">Accessori</h6>
+                                    <h3 class="card-title mb-0 text-secondary">${routeData.pezzi_accessori || 0}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            if (accessoriBody) {
+                accessoriBody.innerHTML = '';
+                if (accessori.length === 0) {
+                    accessoriBody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Nessun accessorio</td></tr>';
+                } else {
+                    accessori.forEach(accessorio => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><strong>${accessorio.codice_prodotto || ''}</strong></td>
+                            <td>${accessorio.cliente || ''}</td>
+                            <td>${accessorio.descrizione || ''}</td>
+                            <td>${accessorio.ubicazione || 'N/A'}</td>
+                            <td><span class="badge ${accessorio.cc === 'EUROMASTER' ? 'bg-info' : accessorio.cc === 'CAMSO' ? 'bg-warning' : 'bg-primary'} text-white">${accessorio.cc || 'MICHELIN'}</span></td>
+                        `;
+                        accessoriBody.appendChild(row);
+                    });
+                }
+            }
+        }
+        
+        function showCrossdockDetails(route) {
+            if (!currentAnalysisData || !currentAnalysisData.crossdock_details) return;
+            
+            const crossdock = currentAnalysisData.crossdock_details[route] || [];
+            const modalTitle = document.getElementById('crossdockModalTitle');
+            const crossdockBody = document.getElementById('crossdockBody');
+            const routeStats = document.getElementById('crossdockRouteStats');
+            
+            if (modalTitle) modalTitle.textContent = `Crossdock - ${route}`;
+            
+            const routeData = currentAnalysisData.statistics.per_giro.find(g => g.route === route);
+            if (routeStats && routeData) {
+                routeStats.innerHTML = `
+                    <div class="row justify-content-center">
+                        <div class="col-auto">
+                            <div class="card border-primary" style="min-width: 200px;">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">Totale Pezzi</h6>
+                                    <h3 class="card-title mb-0">${routeData.totale}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="card border-warning" style="min-width: 200px;">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">Crossdock</h6>
+                                    <h3 class="card-title mb-0 text-warning">${routeData.pezzi_crossdock || 0}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            if (crossdockBody) {
+                crossdockBody.innerHTML = '';
+                if (crossdock.length === 0) {
+                    crossdockBody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Nessun pezzo crossdock</td></tr>';
+                } else {
+                    crossdock.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><strong>${item.codice_prodotto || ''}</strong></td>
+                            <td>${item.cliente || ''}</td>
+                            <td>${item.descrizione || ''}</td>
+                            <td>${item.ubicazione || 'N/A'}</td>
+                            <td><span class="badge ${item.cc === 'EUROMASTER' ? 'bg-info' : item.cc === 'CAMSO' ? 'bg-warning' : 'bg-primary'} text-white">${item.cc || 'MICHELIN'}</span></td>
+                        `;
+                        crossdockBody.appendChild(row);
+                    });
+                }
+            }
+        }
+        
+        function showClientiDetails(route) {
+            if (!currentAnalysisData || !currentAnalysisData.clienti_per_giro) return;
+            
+            const clienti = currentAnalysisData.clienti_per_giro[route] || [];
+            const modalTitle = document.getElementById('clientiModalTitle');
+            const clientiBody = document.getElementById('clientiBody');
+            const routeStats = document.getElementById('clientiRouteStats');
+            
+            if (modalTitle) modalTitle.textContent = `Clienti - ${route}`;
+            
+            if (routeStats) {
+                routeStats.innerHTML = `
+                    <div class="row justify-content-center">
+                        <div class="col-auto">
+                            <div class="card border-primary" style="min-width: 200px;">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">Totale Clienti</h6>
+                                    <h3 class="card-title mb-0 text-primary">${clienti.length}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            if (clientiBody) {
+                clientiBody.innerHTML = '';
+                if (clienti.length === 0) {
+                    clientiBody.innerHTML = '<div class="alert alert-info text-center">Nessun cliente trovato</div>';
+                } else {
+                    clienti.forEach((cliente, index) => {
+                        const listItem = document.createElement('div');
+                        listItem.className = 'list-group-item';
+                        listItem.style.cssText = 'border-left: 4px solid #6f42c1; margin-bottom: 8px; border-radius: 8px;';
+                        listItem.innerHTML = `
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1" style="color: #6f42c1; font-weight: 600;">${index + 1}. ${cliente}</h6>
+                                </div>
+                                <i class="bi bi-person-circle" style="color: #6f42c1; font-size: 1.5rem;"></i>
+                            </div>
+                        `;
+                        clientiBody.appendChild(listItem);
+                    });
+                }
+            }
+        }
+        
+        async function extractDataForDate(date) {
+            try {
+                // Verifica che la data sia nel formato corretto
+                if (!date || typeof date !== 'string') {
+                    console.error('Data non valida:', date);
+                    alert('Errore: data non valida');
+                    return;
+                }
+                
+                // Verifica il formato della data (YYYY-MM-DD)
+                const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+                if (!dateRegex.test(date)) {
+                    console.error('Formato data non valido:', date);
+                    alert('Errore: formato data non valido');
+                    return;
+                }
+                
+                // Aggiungi la data al set delle date estratte (anche se si apre solo la pagina)
+                extractedDates.add(date);
+                renderCalendar();
+                
+                // Apri una nuova pagina a tutto schermo per i risultati
+                const url = `/risultati/${date}`;
+                console.log('Apertura pagina risultati:', url);
+                
+                const newWindow = window.open(url, '_blank');
+                
+                // Se il popup è stato bloccato, reindirizza nella stessa finestra
+                if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+                    console.warn('Popup bloccato, reindirizzamento nella stessa finestra');
+                    window.location.href = url;
+                }
+            } catch (error) {
+                console.error('Errore durante l\'apertura della pagina risultati:', error);
+                alert('Errore durante l\'apertura della pagina. Verifica la console per i dettagli.');
+            }
+        }
+        
+        async function loadExtractions() {
+            try {
+                const response = await fetch('/api/list_extractions');
+                const data = await response.json();
+                
+                if (response.ok && data.extractions && data.extractions.length > 0) {
+                    // Aggiorna il set delle date estratte per il calendario
+                    extractedDates.clear();
+                    data.extractions.forEach(extraction => {
+                        if (extraction.date && extraction.date !== 'N/A') {
+                            extractedDates.add(extraction.date);
+                        }
+                    });
+                    
+                    // Aggiorna il calendario per mostrare i giorni estratti
+                    renderCalendar();
+                }
+                return Promise.resolve();
+            } catch (error) {
+                console.error('Errore nel caricamento estrazioni:', error);
+                return Promise.reject(error);
+            }
+        }
+        
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            
+            // Aggiorna header
+            currentMonthYear.textContent = `${monthNames[month]} ${year}`;
+            
+            // Pulisci il calendario
+            calendarGrid.innerHTML = '';
+            
+            // Aggiungi header giorni
+            dayNames.forEach(day => {
+                const header = document.createElement('div');
+                header.className = 'calendar-day-header';
+                header.textContent = day;
+                calendarGrid.appendChild(header);
+            });
+            
+            // Primo giorno del mese
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            const startingDayOfWeek = firstDay.getDay();
+            
+            // Aggiungi celle vuote per i giorni prima del primo giorno del mese
+            for (let i = 0; i < startingDayOfWeek; i++) {
+                const emptyDay = document.createElement('div');
+                emptyDay.className = 'calendar-day disabled';
+                calendarGrid.appendChild(emptyDay);
+            }
+            
+            // Aggiungi i giorni del mese
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayDate = new Date(year, month, day);
+                const dateStr = formatDate(dayDate);
+                const isToday = dayDate.getTime() === today.getTime();
+                const isExtracted = extractedDates.has(dateStr);
+                const isSelected = selectedDate && formatDate(selectedDate) === dateStr;
+                
+                const dayElement = document.createElement('div');
+                dayElement.className = 'calendar-day';
+                dayElement.textContent = day;
+                
+                if (isToday) {
+                    dayElement.classList.add('today');
+                }
+                if (isSelected) {
+                    dayElement.classList.add('selected');
+                }
+                if (isExtracted) {
+                    dayElement.classList.add('extracted');
+                }
+                
+                // Non permettere selezione di date future
+                if (dayDate > today) {
+                    dayElement.classList.add('disabled');
+                } else {
+                    dayElement.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Click su giorno:', dateStr, 'isExtracting:', isExtracting);
+                        if (!isExtracting) {
+                            selectedDate = dayDate;
+                            renderCalendar();
+                            extractDataForDate(dateStr);
+                        } else {
+                            console.log('Estrazione in corso, click ignorato');
+                        }
+                    });
+                }
+                
+                // Se questa è la data attualmente selezionata per il polling, riavvia il polling
+                if (currentSelectedDateStr === dateStr && !autoRefreshInterval) {
+                    startAutoRefresh(dateStr);
+                }
+                
+                calendarGrid.appendChild(dayElement);
+            }
+        }
+        
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        // Navigazione mesi
+        prevMonthBtn.addEventListener('click', () => {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            renderCalendar();
+        });
+        
+        nextMonthBtn.addEventListener('click', () => {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            renderCalendar();
+        });
+        
+        // Inizializza calendario
+        renderCalendar();
+        
+        // Carica le estrazioni esistenti all'avvio e aggiorna il calendario
+        loadExtractions();
+        
+        // Aggiungi listener per il pulsante stop
+        const stopBtn = document.getElementById('stop-refresh-btn');
+        if (stopBtn) {
+            stopBtn.addEventListener('click', () => {
+                stopAutoRefresh();
+                showAlert('Aggiornamento automatico fermato', 'info');
+            });
+        }
+    </script>
+{% endblock %}
+

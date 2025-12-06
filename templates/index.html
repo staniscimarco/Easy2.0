@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Easyloading{% endblock %}
+
+{% block content %}
+<div class="container fade-in">
+    <!-- Main Cards -->
+    <div class="row g-4">
+        <!-- Anagrafica Section -->
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="bi bi-database me-2"></i>
+                    Anagrafica Articoli
+                    {% if anagrafica_loaded %}
+                        <span class="status-badge status-loaded ms-3">
+                            <i class="bi bi-check-circle"></i>
+                            Caricata
+                        </span>
+                    {% else %}
+                        <span class="status-badge status-not-loaded ms-3">
+                            <i class="bi bi-x-circle"></i>
+                            Non caricata
+                        </span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if anagrafica_loaded %}
+                        {% if anagrafica_filename %}
+                            <div class="alert alert-success mb-3">
+                                <i class="bi bi-file-earmark-check me-2"></i>
+                                <strong>File caricato:</strong> {{ anagrafica_filename }}
+                                {% if 'json' in anagrafica_filename.lower() %}
+                                    <br><small class="text-muted">(Caricata automaticamente dal file JSON salvato)</small>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                        
+                        <a href="/view_anagrafica" class="btn btn-primary w-100">
+                            <i class="bi bi-eye"></i>
+                            Visualizza e Gestisci Anagrafica
+                        </a>
+                    {% else %}
+                        <form action="/upload_anagrafica" method="post" enctype="multipart/form-data">
+                            <div class="file-input-wrapper mb-3">
+                                <input type="file" name="file" accept=".csv" required id="anagrafica-file">
+                                <div class="file-input" id="anagrafica-label">
+                                    <i class="bi bi-cloud-upload me-2"></i>
+                                    Clicca per selezionare il file CSV anagrafica articoli
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-upload"></i>
+                                Carica Anagrafica
+                            </button>
+                        </form>
+                        
+                        <div class="info-box mt-3">
+                            <h3><i class="bi bi-info-circle me-2"></i>Informazioni Anagrafica</h3>
+                            <ul class="mb-0">
+                                <li>Il file deve contenere colonne: FCY_0, DEP_0, ITM_0 (colonna C), COD_0 (colonna D)</li>
+                                <li>L'anagrafica viene memorizzata per le trasformazioni successive</li>
+                            </ul>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Transform Section -->
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <i class="bi bi-arrow-repeat me-2"></i>
+                    Trasforma File CSV
+                </div>
+                <div class="card-body">
+                    <form action="/upload_transform" method="post" enctype="multipart/form-data" id="transform-form">
+                        <div class="file-input-wrapper mb-3">
+                            <input type="file" name="file" accept=".csv" required id="transform-file" 
+                                   {% if not anagrafica_loaded %}disabled{% endif %}>
+                            <div class="file-input" id="transform-label" 
+                                 style="{% if not anagrafica_loaded %}opacity: 0.5; cursor: not-allowed; background: #e9ecef;{% endif %}">
+                                <i class="bi bi-file-earmark-spreadsheet me-2"></i>
+                                Clicca per selezionare il file CSV da trasformare
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100" id="transform-btn" {% if not anagrafica_loaded %}disabled{% endif %}>
+                            <i class="bi bi-magic"></i>
+                            Trasforma e Scarica
+                        </button>
+                    </form>
+
+                    {% if not anagrafica_loaded %}
+                        <div class="alert alert-warning mt-3">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>Attenzione:</strong> Devi prima caricare l'anagrafica per poter trasformare i file CSV.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Section -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="bi bi-lightbulb text-warning me-2"></i>
+                        Come funziona
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-start">
+                                <div class="flex-shrink-0">
+                                    <div class="bg-primary bg-opacity-10 rounded-circle p-3">
+                                        <i class="bi bi-1-circle-fill text-primary fs-4"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h6 class="fw-bold">Carica Anagrafica</h6>
+                                    <p class="text-muted small mb-0">Carica il file CSV contenente l'anagrafica degli articoli. Il sistema lo salverà automaticamente per le trasformazioni future.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-start">
+                                <div class="flex-shrink-0">
+                                    <div class="bg-success bg-opacity-10 rounded-circle p-3">
+                                        <i class="bi bi-2-circle-fill text-success fs-4"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h6 class="fw-bold">Trasforma CSV</h6>
+                                    <p class="text-muted small mb-0">Carica il file CSV da trasformare. Il sistema applicherà automaticamente le regole di trasformazione e l'incrocio con l'anagrafica.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-start">
+                                <div class="flex-shrink-0">
+                                    <div class="bg-info bg-opacity-10 rounded-circle p-3">
+                                        <i class="bi bi-3-circle-fill text-info fs-4"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h6 class="fw-bold">Scarica Risultato</h6>
+                                    <p class="text-muted small mb-0">Scarica il file trasformato con tutti i codici aggiornati secondo le regole specificate e l'anagrafica caricata.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Aggiorna label quando viene selezionato un file
+    document.getElementById('anagrafica-file')?.addEventListener('change', function(e) {
+        const label = document.getElementById('anagrafica-label');
+        if (e.target.files.length > 0) {
+            label.innerHTML = '<i class="bi bi-file-earmark-check me-2"></i>File selezionato: ' + e.target.files[0].name;
+            label.style.borderColor = '#28a745';
+            label.style.background = '#d4edda';
+        } else {
+            label.innerHTML = '<i class="bi bi-cloud-upload me-2"></i>Clicca per selezionare il file CSV anagrafica articoli';
+            label.style.borderColor = '';
+            label.style.background = '';
+        }
+    });
+
+    document.getElementById('transform-file')?.addEventListener('change', function(e) {
+        const label = document.getElementById('transform-label');
+        if (e.target.files.length > 0) {
+            label.innerHTML = '<i class="bi bi-file-earmark-check me-2"></i>File selezionato: ' + e.target.files[0].name;
+            label.style.borderColor = '#28a745';
+            label.style.background = '#d4edda';
+        } else {
+            label.innerHTML = '<i class="bi bi-file-earmark-spreadsheet me-2"></i>Clicca per selezionare il file CSV da trasformare';
+            label.style.borderColor = '';
+            label.style.background = '';
+        }
+    });
+
+    // Gestione submit form trasformazione
+    document.getElementById('transform-form')?.addEventListener('submit', function(e) {
+        const btn = document.getElementById('transform-btn');
+        const fileInput = document.getElementById('transform-file');
+        
+        if (!fileInput.files || fileInput.files.length === 0) {
+            e.preventDefault();
+            alert('Seleziona un file CSV da trasformare');
+            return false;
+        }
+        
+        // Mostra indicatore di caricamento
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Elaborazione in corso...';
+    });
+</script>
+{% endblock %}

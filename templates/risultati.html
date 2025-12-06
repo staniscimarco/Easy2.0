@@ -1,0 +1,1397 @@
+{% extends "base.html" %}
+
+{% block title %}Risultati Analisi - Easyloading{% endblock %}
+
+{% block extra_css %}
+<style>
+
+        .stat-card {
+            border-radius: 12px;
+            border: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card .card-body {
+            padding: 0.5rem 0.75rem;
+        }
+        
+        .stat-card {
+            height: auto;
+            min-height: auto;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .stat-icon {
+            font-size: 20px;
+            opacity: 0.8;
+        }
+
+        .search-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .results-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .table {
+            margin-top: 20px;
+            border-collapse: separate;
+            border-spacing: 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .table thead {
+            background: linear-gradient(135deg, #00457d 0%, #0056b3 100%);
+            color: white;
+        }
+
+        .table thead th {
+            text-align: center;
+            vertical-align: middle;
+            padding: 18px 15px;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: none;
+        }
+
+        .table thead th:first-child {
+            border-top-left-radius: 10px;
+        }
+
+        .table thead th:last-child {
+            border-top-right-radius: 10px;
+        }
+
+        .table tbody td {
+            text-align: center;
+            vertical-align: middle;
+            padding: 16px 15px;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 14px;
+        }
+
+        .table tbody tr {
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .table tbody tr:hover {
+            background: #f8f9ff;
+            transform: scale(1.01);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+        }
+
+        .table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .table tbody tr:last-child td:first-child {
+            border-bottom-left-radius: 10px;
+        }
+
+        .table tbody tr:last-child td:last-child {
+            border-bottom-right-radius: 10px;
+        }
+
+        .btn-details {
+            border-radius: 20px;
+            padding: 6px 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-details:hover {
+            transform: scale(1.05);
+        }
+
+        .search-result-item {
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border-left: 4px solid #00457d;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .search-result-item:hover {
+            background: #e8e8ff;
+            transform: translateX(5px);
+        }
+
+        .modal-content {
+            border-radius: 15px;
+        }
+
+        .badge {
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .btn-details {
+            border-radius: 20px;
+            padding: 6px 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .btn-details:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 10px rgba(255, 193, 7, 0.3);
+        }
+
+        .progress {
+            height: 28px;
+            border-radius: 15px;
+            background: #e9ecef;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            border-radius: 15px;
+            font-weight: 600;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: width 0.6s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .table tbody td strong {
+            color: #00457d;
+            font-size: 15px;
+            font-weight: 700;
+        }
+        
+        #updateIndicator {
+            background: linear-gradient(135deg, #e7f3ff 0%, #d1ecf1 100%);
+            border: 2px solid #0dcaf0;
+            transition: all 0.3s ease;
+        }
+        
+        #updateIndicator:hover {
+            background: linear-gradient(135deg, #d1ecf1 0%, #b8e6f0 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(13, 202, 240, 0.3);
+        }
+        
+        #updateIcon {
+            transition: transform 0.3s ease;
+        }
+        
+        #updateIcon.spinner-border-sm {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        #updateIcon:hover {
+            transform: rotate(180deg);
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid fade-in">
+        <!-- Indicatore Aggiornamento Automatico -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="alert alert-info d-flex justify-content-between align-items-center" id="updateIndicator" style="border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-arrow-clockwise me-2" id="updateIcon" style="font-size: 1.2rem;"></i>
+                        <span id="updateStatus" style="font-weight: 600;">Aggiornamento Attivo: <span id="updateStatusValue" style="color: #28a745; font-weight: 700;">Sì</span></span>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <small id="lastUpdateTime" class="text-muted" style="font-size: 0.85rem;">Ultimo aggiornamento: <span id="lastUpdateTimeValue">--:--:--</span></small>
+                        <small id="countdownTimer" class="text-muted" style="font-size: 0.85rem; font-weight: 600;">
+                            <i class="bi bi-clock me-1"></i>
+                            Prossimo aggiornamento: <span id="countdownValue" style="color: #00457d; font-weight: 700;">--:--</span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Statistiche Totali -->
+        <div class="row mb-4" id="statsCards">
+            <!-- Verrà popolato dinamicamente -->
+        </div>
+
+        <!-- Ricerca per Codice Prodotto -->
+        <div class="search-section">
+            <h4 class="mb-3"><i class="bi bi-search me-2"></i>Ricerca per Codice Prodotto</h4>
+            <input type="text" 
+                   id="productSearch" 
+                   class="form-control form-control-lg" 
+                   placeholder="Inserisci il codice prodotto per trovare i giri dove deve ancora essere ancora effettuato il check...">
+            <div class="mt-3" id="searchResults"></div>
+        </div>
+
+        <!-- Tabella Risultati -->
+        <div class="results-section">
+            <h4 class="mb-3"><i class="bi bi-table me-2"></i>Dettaglio per Route</h4>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th class="text-center">Route</th>
+                            <th class="text-center">Destinazione</th>
+                            <th class="text-center">Clienti</th>
+                            <th class="text-center">CC</th>
+                            <th class="text-center">Pezzi Previsti</th>
+                            <th class="text-center">Checked</th>
+                            <th class="text-center">To be Check</th>
+                            <th class="text-center">Accessori</th>
+                            <th class="text-center">Crossdock</th>
+                            <th class="text-center">% Completamento</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Dettagli -->
+    <div class="modal fade" id="detailsModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="w-100 text-center">
+                        <div class="mb-2">
+                            <small class="text-muted" id="modalDate" style="font-size: 0.9rem;">--/--/----</small>
+                        </div>
+                        <h5 class="modal-title mb-0" id="modalTitle">Giro</h5>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-4" id="routeStats">
+                        <!-- Statistiche del giro -->
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>CAI</th>
+                                    <th>Cliente</th>
+                                    <th>Descrizione Articolo</th>
+                                    <th>Ubicazione</th>
+                                    <th>CC</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detailsBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal per Accessori -->
+    <div class="modal fade" id="accessoriModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title w-100 text-center" id="accessoriModalTitle">Accessori - Giro</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-4" id="accessoriRouteStats">
+                        <!-- Statistiche accessori del giro -->
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>CAI</th>
+                                    <th>Cliente</th>
+                                    <th>Descrizione Articolo</th>
+                                    <th>Ubicazione</th>
+                                    <th>CC</th>
+                                </tr>
+                            </thead>
+                            <tbody id="accessoriBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal per Crossdock -->
+    <div class="modal fade" id="crossdockModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title w-100 text-center" id="crossdockModalTitle">Crossdock - Giro</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-4" id="crossdockRouteStats">
+                        <!-- Statistiche crossdock del giro -->
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>CAI</th>
+                                    <th>Cliente</th>
+                                    <th>Descrizione Articolo</th>
+                                    <th>Ubicazione</th>
+                                    <th>CC</th>
+                                </tr>
+                            </thead>
+                            <tbody id="crossdockBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal per Clienti -->
+    <div class="modal fade" id="clientiModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title w-100 text-center" id="clientiModalTitle">Clienti - Giro</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-4" id="clientiRouteStats">
+                        <!-- Statistiche clienti del giro -->
+                    </div>
+                    <div class="list-group" id="clientiBody">
+                        <!-- Lista clienti -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let analysisData = {{ data | tojson }};
+        let detailsModal = null;
+        let accessoriModal = null;
+        let crossdockModal = null;
+        let clientiModal = null;
+        let currentDate = '{{ data.date }}';
+
+        // Funzione per formattare le date nel formato GG/MM/AAAA
+        function formatDate(dateStr) {
+            if (!dateStr) return '--/--/----';
+            try {
+                // Se la data è nel formato YYYY-MM-DD
+                if (dateStr.includes('-')) {
+                    const parts = dateStr.split('-');
+                    if (parts.length === 3) {
+                        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                    }
+                }
+                return dateStr;
+            } catch (error) {
+                console.error('Errore nella formattazione della data:', error);
+                return '--/--/----';
+            }
+        }
+
+        // Funzione per inizializzare i modali
+        function initializeModals() {
+            const detailsModalElement = document.getElementById('detailsModal');
+            const accessoriModalElement = document.getElementById('accessoriModal');
+            const crossdockModalElement = document.getElementById('crossdockModal');
+            const clientiModalElement = document.getElementById('clientiModal');
+            
+            if (detailsModalElement && !detailsModal) {
+                detailsModal = new bootstrap.Modal(detailsModalElement);
+            }
+            if (accessoriModalElement && !accessoriModal) {
+                accessoriModal = new bootstrap.Modal(accessoriModalElement);
+            }
+            if (crossdockModalElement && !crossdockModal) {
+                crossdockModal = new bootstrap.Modal(crossdockModalElement);
+            }
+            if (clientiModalElement && !clientiModal) {
+                clientiModal = new bootstrap.Modal(clientiModalElement);
+            }
+        }
+
+        // Variabile per il polling automatico
+        let updateInterval = null;
+        let countdownInterval = null;
+        let isUpdating = false;
+        const UPDATE_INTERVAL_MS = 30 * 60 * 1000; // 30 minuti
+        let timeUntilUpdate = UPDATE_INTERVAL_MS; // Tempo rimanente in millisecondi
+        
+        // Funzione per aggiornare i dati
+        async function updateData() {
+            if (isUpdating) return; // Evita chiamate multiple simultanee
+            
+            isUpdating = true;
+            const updateIcon = document.getElementById('updateIcon');
+            if (updateIcon) {
+                updateIcon.classList.add('spinner-border', 'spinner-border-sm');
+                updateIcon.classList.remove('bi-arrow-clockwise');
+            }
+            
+            try {
+                // Chiama l'endpoint API per ottenere i dati aggiornati
+                const response = await fetch('/api/estrai_e_analizza', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        date: currentDate,
+                        site: 'TST - EDC Torino'
+                    })
+                });
+                
+                if (response.ok) {
+                    const newData = await response.json();
+                    if (newData.success) {
+                        analysisData = newData;
+                        displayStats();
+                        displayResults();
+                        setupSearch();
+                        
+                        // Aggiorna l'ora dell'ultimo aggiornamento
+                        const now = new Date();
+                        const timeStr = now.toLocaleTimeString('it-IT');
+                        const lastUpdateTimeValue = document.getElementById('lastUpdateTimeValue');
+                        if (lastUpdateTimeValue) {
+                            lastUpdateTimeValue.textContent = timeStr;
+                        }
+                        
+                        // Reset del countdown
+                        timeUntilUpdate = UPDATE_INTERVAL_MS;
+                        updateCountdown();
+                    } else {
+                        console.error('Errore nell\'aggiornamento:', newData.error);
+                    }
+                } else {
+                    console.error('Errore HTTP:', response.status);
+                }
+            } catch (error) {
+                console.error('Errore durante l\'aggiornamento:', error);
+            } finally {
+                isUpdating = false;
+                if (updateIcon) {
+                    updateIcon.classList.remove('spinner-border', 'spinner-border-sm');
+                    updateIcon.classList.add('bi-arrow-clockwise');
+                }
+            }
+        }
+        
+        // Funzione per aggiornare il countdown
+        function updateCountdown() {
+            const countdownValue = document.getElementById('countdownValue');
+            if (!countdownValue || !updateInterval) {
+                // Se l'aggiornamento non è attivo, mostra "--:--"
+                if (countdownValue) {
+                    countdownValue.textContent = '--:--';
+                }
+                return;
+            }
+            
+            const minutes = Math.floor(timeUntilUpdate / 60000);
+            const seconds = Math.floor((timeUntilUpdate % 60000) / 1000);
+            
+            countdownValue.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            
+            // Decrementa il tempo rimanente
+            timeUntilUpdate -= 1000;
+            
+            // Se il tempo è scaduto, resetta (l'aggiornamento verrà eseguito dall'intervallo)
+            if (timeUntilUpdate <= 0) {
+                timeUntilUpdate = UPDATE_INTERVAL_MS;
+            }
+        }
+        
+        // Funzione per avviare/fermare l'aggiornamento automatico
+        function toggleAutoUpdate() {
+            const statusValue = document.getElementById('updateStatusValue');
+            if (updateInterval) {
+                // Ferma l'aggiornamento
+                clearInterval(updateInterval);
+                clearInterval(countdownInterval);
+                updateInterval = null;
+                countdownInterval = null;
+                if (statusValue) {
+                    statusValue.textContent = 'No';
+                    statusValue.style.color = '#dc3545';
+                }
+                // Reset countdown display
+                const countdownValue = document.getElementById('countdownValue');
+                if (countdownValue) {
+                    countdownValue.textContent = '--:--';
+                }
+            } else {
+                // Avvia l'aggiornamento
+                updateInterval = setInterval(updateData, UPDATE_INTERVAL_MS); // Ogni 30 minuti
+                if (statusValue) {
+                    statusValue.textContent = 'Sì';
+                    statusValue.style.color = '#28a745';
+                }
+                // Reset del countdown
+                timeUntilUpdate = UPDATE_INTERVAL_MS;
+                updateCountdown();
+                // Avvia il countdown che si aggiorna ogni secondo
+                countdownInterval = setInterval(updateCountdown, 1000);
+                // Esegui il primo aggiornamento immediatamente
+                updateData();
+            }
+        }
+        
+        // Carica i dati all'avvio
+        window.addEventListener('DOMContentLoaded', () => {
+            // Verifica se ci sono errori
+            if (analysisData && !analysisData.success && analysisData.error) {
+                const statsCards = document.getElementById('statsCards');
+                if (statsCards) {
+                    statsCards.innerHTML = `
+                        <div class="col-12">
+                            <div class="alert alert-danger" role="alert">
+                                <h4 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>Errore</h4>
+                                <p>${analysisData.error}</p>
+                                <hr>
+                                <p class="mb-0">Data: ${currentDate || 'N/A'}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+                return;
+            }
+            
+            // Verifica che i dati siano validi
+            if (!analysisData || !analysisData.statistics) {
+                console.error('Dati non validi:', analysisData);
+                const statsCards = document.getElementById('statsCards');
+                if (statsCards) {
+                    statsCards.innerHTML = `
+                        <div class="col-12">
+                            <div class="alert alert-warning" role="alert">
+                                <h4 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>Attenzione</h4>
+                                <p>I dati non sono disponibili o non sono nel formato corretto.</p>
+                            </div>
+                        </div>
+                    `;
+                }
+                return;
+            }
+            
+            initializeModals();
+            displayStats();
+            displayResults();
+            setupSearch();
+            
+            // Imposta l'ora iniziale
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('it-IT');
+            const lastUpdateTimeValue = document.getElementById('lastUpdateTimeValue');
+            if (lastUpdateTimeValue) {
+                lastUpdateTimeValue.textContent = timeStr;
+            }
+            
+            // Avvia l'aggiornamento automatico
+            toggleAutoUpdate();
+            
+            // Permetti di cliccare sull'indicatore per attivare/disattivare
+            const updateIndicator = document.getElementById('updateIndicator');
+            if (updateIndicator) {
+                updateIndicator.style.cursor = 'pointer';
+                updateIndicator.addEventListener('click', toggleAutoUpdate);
+            }
+        });
+        
+        // Pulisci l'intervallo quando la pagina viene chiusa
+        window.addEventListener('beforeunload', () => {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+        });
+
+        function displayStats() {
+            const stats = analysisData.statistics.totali;
+            const statsCards = document.getElementById('statsCards');
+            
+            // Determina la data da mostrare
+            let dateToShow = currentDate;
+            
+            // Funzione per formattare la data da YYYY-MM-DD a GG/MM/AAAA
+            const formatDateForDisplay = (dateStr) => {
+                if (!dateStr) return '';
+                try {
+                    const parts = dateStr.split('-');
+                    if (parts.length === 3) {
+                        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                    }
+                    return dateStr;
+                } catch (error) {
+                    return dateStr;
+                }
+            };
+            
+            statsCards.innerHTML = `
+                ${dateToShow ? `
+                <div class="col-12 mb-4">
+                    <div class="text-center">
+                        <h3 style="font-weight: 700; letter-spacing: 2px; font-size: 2rem; color: #00457d;">${formatDateForDisplay(dateToShow)}</h3>
+                    </div>
+                </div>
+                ` : ''}
+                <div class="col-md-3 mb-3">
+                    <div class="card stat-card text-white" style="background: linear-gradient(135deg, #0d6efd 0%, #0056b3 100%); box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center" style="min-height: auto;">
+                                <div style="flex: 1;">
+                                    <h6 class="card-subtitle mb-0" style="opacity: 0.9; font-weight: 600; text-transform: uppercase; font-size: 0.65rem; line-height: 1.2;">Totale Pezzi</h6>
+                                    <h2 class="card-title mb-0 mt-1" style="color: #fff; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2); font-size: 1.1rem; line-height: 1.2;">${stats.totale_pezzi.toLocaleString()}</h2>
+                                </div>
+                                <i class="bi bi-box-seam stat-icon" style="font-size: 20px; margin-left: 0.5rem;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stat-card text-white bg-success" style="box-shadow: 0 4px 15px rgba(25, 135, 84, 0.3);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center" style="min-height: auto;">
+                                <div style="flex: 1;">
+                                    <h6 class="card-subtitle mb-0" style="opacity: 0.9; font-weight: 600; text-transform: uppercase; font-size: 0.65rem; line-height: 1.2;">Checked</h6>
+                                    <h2 class="card-title mb-0 mt-1" style="color: #d4edda; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2); font-size: 1.1rem; line-height: 1.2;">${stats.pezzi_checkati.toLocaleString()}</h2>
+                                </div>
+                                <i class="bi bi-check-circle stat-icon" style="font-size: 20px; margin-left: 0.5rem;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stat-card text-white bg-danger" style="box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center" style="min-height: auto;">
+                                <div style="flex: 1;">
+                                    <h6 class="card-subtitle mb-0" style="opacity: 0.9; font-weight: 600; text-transform: uppercase; font-size: 0.65rem; line-height: 1.2;">To be Check</h6>
+                                    <h2 class="card-title mb-0 mt-1" style="color: #f8d7da; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2); font-size: 1.1rem; line-height: 1.2;">${stats.pezzi_da_checkare.toLocaleString()}</h2>
+                                </div>
+                                <i class="bi bi-x-circle stat-icon" style="font-size: 20px; margin-left: 0.5rem;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stat-card text-white" style="background: linear-gradient(135deg, #00457d 0%, #0056b3 100%); box-shadow: 0 4px 15px rgba(0, 69, 125, 0.3);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center" style="min-height: auto;">
+                                <div style="flex: 1;">
+                                    <h6 class="card-subtitle mb-0" style="opacity: 0.9; font-weight: 600; text-transform: uppercase; font-size: 0.65rem; line-height: 1.2;">% Completamento</h6>
+                                    <h2 class="card-title mb-0 mt-1" style="color: #e9ecef; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2); font-size: 1.1rem; line-height: 1.2;">${stats.percentuale_completamento}%</h2>
+                                </div>
+                                <i class="bi bi-percent stat-icon" style="font-size: 20px; margin-left: 0.5rem;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stat-card text-white" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); box-shadow: 0 4px 15px rgba(23, 162, 184, 0.3);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center" style="min-height: auto;">
+                                <div style="flex: 1;">
+                                    <h6 class="card-subtitle mb-0" style="opacity: 0.9; font-weight: 600; text-transform: uppercase; font-size: 0.65rem; line-height: 1.2;">Giri Previsti</h6>
+                                    <h2 class="card-title mb-0 mt-1" style="color: #d1ecf1; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2); font-size: 1.1rem; line-height: 1.2;">${(stats.totale_giri || 0).toLocaleString()}</h2>
+                                </div>
+                                <i class="bi bi-map stat-icon" style="font-size: 20px; margin-left: 0.5rem;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stat-card text-white bg-success" style="box-shadow: 0 4px 15px rgba(25, 135, 84, 0.3);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center" style="min-height: auto;">
+                                <div style="flex: 1;">
+                                    <h6 class="card-subtitle mb-0" style="opacity: 0.9; font-weight: 600; text-transform: uppercase; font-size: 0.65rem; line-height: 1.2;">Giri Completati</h6>
+                                    <h2 class="card-title mb-0 mt-1" style="color: #d4edda; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2); font-size: 1.1rem; line-height: 1.2;">${(stats.giri_completati || 0).toLocaleString()}</h2>
+                                </div>
+                                <i class="bi bi-check-circle-fill stat-icon" style="font-size: 20px; margin-left: 0.5rem;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stat-card text-white bg-warning" style="box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center" style="min-height: auto;">
+                                <div style="flex: 1;">
+                                    <h6 class="card-subtitle mb-0" style="opacity: 0.9; font-weight: 600; text-transform: uppercase; font-size: 0.65rem; line-height: 1.2;">Giri Non Completati</h6>
+                                    <h2 class="card-title mb-0 mt-1" style="color: #fff3cd; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2); font-size: 1.1rem; line-height: 1.2;">${(stats.giri_non_completati || 0).toLocaleString()}</h2>
+                                </div>
+                                <i class="bi bi-exclamation-circle stat-icon" style="font-size: 20px; margin-left: 0.5rem;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stat-card text-white" style="background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%); box-shadow: 0 4px 15px rgba(32, 201, 151, 0.3);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center" style="min-height: auto;">
+                                <div style="flex: 1;">
+                                    <h6 class="card-subtitle mb-0" style="opacity: 0.9; font-weight: 600; text-transform: uppercase; font-size: 0.65rem; line-height: 1.2;">Completamento Giri %</h6>
+                                    <h2 class="card-title mb-0 mt-1" style="color: #d1ecf1; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2); font-size: 1.1rem; line-height: 1.2;">${(stats.percentuale_completamento_giri || 0).toFixed(2)}%</h2>
+                                </div>
+                                <i class="bi bi-graph-up stat-icon" style="font-size: 20px; margin-left: 0.5rem;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Aggiungi card per accessori e crossdock con stile migliorato
+            const accessoriCount = stats.pezzi_accessori || 0;
+            const crossdockCount = stats.pezzi_crossdock || 0;
+            
+            statsCards.innerHTML += `
+                <div class="row mt-3">
+                    <div class="col-md-3 mb-3">
+                        <div class="card stat-card text-white" style="background: linear-gradient(135deg, #0dcaf0 0%, #087990 100%); box-shadow: 0 4px 15px rgba(13, 202, 240, 0.3); border: 2px solid ${accessoriCount > 0 ? '#0dcaf0' : 'rgba(255,255,255,0.3)'};">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center" style="min-height: auto;">
+                                    <div style="flex: 1;">
+                                        <h6 class="card-subtitle mb-0" style="opacity: 0.95; font-weight: 600; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.5px; line-height: 1.2;">
+                                            <i class="bi bi-box-seam me-1"></i>Accessori
+                                        </h6>
+                                        <h2 class="card-title mb-0 mt-1" style="color: #d1ecf1; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2); font-size: 1.1rem; line-height: 1.2;">
+                                            ${accessoriCount.toLocaleString()}
+                                        </h2>
+                                        ${accessoriCount === 0 ? '<small style="opacity: 0.8; font-size: 0.65rem; line-height: 1.2;">Nessun accessorio</small>' : ''}
+                                    </div>
+                                    <i class="bi bi-box-seam stat-icon" style="font-size: 20px; margin-left: 0.5rem; opacity: ${accessoriCount > 0 ? '1' : '0.3'};"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="card stat-card text-white" style="background: linear-gradient(135deg, #fd7e14 0%, #e55a00 100%); box-shadow: 0 4px 15px rgba(253, 126, 20, 0.3); border: 2px solid ${crossdockCount > 0 ? '#fd7e14' : 'rgba(255,255,255,0.3)'};">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center" style="min-height: auto;">
+                                    <div style="flex: 1;">
+                                        <h6 class="card-subtitle mb-0" style="opacity: 0.95; font-weight: 600; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.5px; line-height: 1.2;">
+                                            <i class="bi bi-truck me-1"></i>Crossdock
+                                        </h6>
+                                        <h2 class="card-title mb-0 mt-1" style="color: #fff3cd; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2); font-size: 1.1rem; line-height: 1.2;">
+                                            ${crossdockCount.toLocaleString()}
+                                        </h2>
+                                        ${crossdockCount === 0 ? '<small style="opacity: 0.8; font-size: 0.65rem; line-height: 1.2;">Nessun crossdock</small>' : ''}
+                                    </div>
+                                    <i class="bi bi-truck stat-icon" style="font-size: 20px; margin-left: 0.5rem; opacity: ${crossdockCount > 0 ? '1' : '0.3'};"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Aggiungi statistiche per CC
+            if (analysisData.statistics && analysisData.statistics.per_cc && analysisData.statistics.per_cc.length > 0) {
+                const ccStats = analysisData.statistics.per_cc;
+                const ccRow = document.createElement('div');
+                ccRow.className = 'row mt-4';
+                ccRow.innerHTML = `
+                    <div class="col-12">
+                        <h4 class="mb-3"><i class="bi bi-building me-2"></i>Statistiche per Centro di Costo</h4>
+                    </div>
+                `;
+                
+                ccStats.forEach(cc => {
+                    const ccColor = cc.cc === 'EUROMASTER' ? 'bg-info' : 
+                                   cc.cc === 'CAMSO' ? 'bg-warning' : 
+                                   'bg-primary';
+                    const col = document.createElement('div');
+                    col.className = 'col-md-4 mb-3';
+                    col.innerHTML = `
+                        <div class="card stat-card text-white ${ccColor}" style="box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                            <div class="card-body">
+                                <h5 class="card-title mb-3" style="font-weight: 700; text-transform: uppercase; letter-spacing: 1px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">${cc.cc}</h5>
+                                <div class="row text-center g-2">
+                                    <div class="col-2 px-1">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <small class="text-white-50 mb-1" style="font-size: 0.7rem; white-space: nowrap; font-weight: 600; text-transform: uppercase;">Previsti</small>
+                                            <h5 class="mb-0 fw-bold" style="color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.3rem;">${(cc.totale_pezzi || 0).toLocaleString()}</h5>
+                                        </div>
+                                    </div>
+                                    <div class="col-2 px-1">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <small class="text-white-50 mb-1" style="font-size: 0.7rem; white-space: nowrap; font-weight: 600; text-transform: uppercase;">Checked</small>
+                                            <h5 class="mb-0 fw-bold" style="color: #d4edda; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.3rem;">${(cc.pezzi_checkati || 0).toLocaleString()}</h5>
+                                        </div>
+                                    </div>
+                                    <div class="col-2 px-1">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <small class="text-white-50 mb-1" style="font-size: 0.7rem; white-space: nowrap; font-weight: 600; text-transform: uppercase;">To be Check</small>
+                                            <h5 class="mb-0 fw-bold" style="color: #f8d7da; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.3rem;">${(cc.pezzi_da_checkare || 0).toLocaleString()}</h5>
+                                        </div>
+                                    </div>
+                                    <div class="col-2 px-1">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <small class="text-white-50 mb-1" style="font-size: 0.7rem; white-space: nowrap; font-weight: 600; text-transform: uppercase;">Accessori</small>
+                                            <h5 class="mb-0 fw-bold" style="color: #d1ecf1; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.3rem;">${(cc.pezzi_accessori || 0).toLocaleString()}</h5>
+                                        </div>
+                                    </div>
+                                    <div class="col-2 px-1">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <small class="text-white-50 mb-1" style="font-size: 0.7rem; white-space: nowrap; font-weight: 600; text-transform: uppercase;">Crossdock</small>
+                                            <h5 class="mb-0 fw-bold" style="color: #fff3cd; text-shadow: 0 2px 4px rgba(0,0,0,0.3); font-size: 1.3rem;">${(cc.pezzi_crossdock || 0).toLocaleString()}</h5>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    ccRow.appendChild(col);
+                });
+                
+                statsCards.appendChild(ccRow);
+            }
+        }
+
+        function displayResults() {
+            const resultsBody = document.getElementById('resultsBody');
+            resultsBody.innerHTML = '';
+            
+            const statsPerGiro = analysisData.statistics.per_giro.sort((a, b) => b.da_checkare - a.da_checkare);
+            
+            statsPerGiro.forEach(item => {
+                const row = document.createElement('tr');
+                const diff = item.da_checkare;
+                
+                // Calcola la percentuale direttamente dal totale e checkati per evitare errori
+                // NON usare item.percentuale dal server, ricalcola sempre per evitare problemi
+                let percentuale = 0;
+                const totale = parseInt(item.totale) || 0;
+                const checkati = parseInt(item.checkati) || 0;
+                
+                if (totale > 0 && checkati >= 0) {
+                    percentuale = (checkati / totale) * 100;
+                    percentuale = Math.round(percentuale * 100) / 100; // Arrotonda a 2 decimali
+                    percentuale = Math.max(0, Math.min(percentuale, 100)); // Limita tra 0 e 100
+                }
+                
+                // DEBUG: Log per route KH e HI per identificare problemi
+                if (item.route === 'KH' || item.route === 'HI') {
+                    console.log(`Route ${item.route} - totale=${totale}, checkati=${checkati}, percentuale_calcolata=${percentuale}, percentuale_dal_server=${item.percentuale}`);
+                    // Verifica se la percentuale è sospetta
+                    const expected_percent = totale > 0 ? (checkati / totale * 100) : 0;
+                    if (Math.abs(percentuale - expected_percent) > 1) {
+                        console.warn(`Route ${item.route} - Percentuale sospetta! Calcolata: ${percentuale}%, Attesa: ${expected_percent}%, Dal server: ${item.percentuale}%`);
+                    }
+                }
+                
+                // Assicurati che la percentuale sia sempre un numero valido e formattato correttamente
+                const percentualeFormatted = typeof percentuale === 'number' && !isNaN(percentuale) ? percentuale.toFixed(2) : '0.00';
+                const percentualeValue = parseFloat(percentualeFormatted);
+                const widthPercent = Math.min(Math.max(percentualeValue, 0), 100);
+                
+                // Se la percentuale è piccola (< 15%), mostra il testo fuori dalla barra per evitare troncamenti
+                const showTextOutside = percentualeValue > 0 && percentualeValue < 15;
+                
+                const progressBar = `
+                    <div class="progress" style="height: 28px; position: relative;">
+                        <div class="progress-bar ${percentualeValue === 100 ? 'bg-success' : percentualeValue >= 50 ? 'bg-warning' : percentualeValue > 0 ? 'bg-danger' : 'bg-dark'}" 
+                             role="progressbar" 
+                             style="width: ${widthPercent}%">
+                            ${percentualeValue > 0 && !showTextOutside ? percentualeFormatted + '%' : ''}
+                        </div>
+                        ${percentualeValue === 0 ? '<span style="position: absolute; left: 50%; transform: translateX(-50%); color: #6c757d; font-weight: 600; font-size: 12px; line-height: 28px;">0%</span>' : ''}
+                        ${showTextOutside ? `<span style="position: absolute; left: ${Math.max(widthPercent + 2, 2)}%; top: 50%; transform: translateY(-50%); color: #212529; font-weight: 600; font-size: 12px; white-space: nowrap; padding-left: 5px;">${percentualeFormatted}%</span>` : ''}
+                    </div>
+                `;
+                
+                // Funzione per ottenere il colore del badge CC
+                const getCCColor = (cc) => {
+                    if (cc === 'EUROMASTER') return 'bg-info';
+                    if (cc === 'CAMSO') return 'bg-warning';
+                    return 'bg-primary';
+                };
+                
+                // Mostra tutti i CC del giro
+                let ccBadges = '';
+                const ccList = Array.isArray(item.cc) ? item.cc : [item.cc || 'MICHELIN'];
+                ccList.forEach(cc => {
+                    const ccColor = getCCColor(cc);
+                    ccBadges += `<span class="badge ${ccColor} text-white me-1">${cc}</span>`;
+                });
+                
+                row.innerHTML = `
+                    <td class="text-center">
+                        <span style="
+                            color: #fff; 
+                            font-weight: 700; 
+                            font-size: 1.1rem; 
+                            background: linear-gradient(135deg, #0d6efd 0%, #0056b3 100%); 
+                            padding: 8px 16px; 
+                            border-radius: 20px; 
+                            display: inline-block;
+                            box-shadow: 0 3px 8px rgba(13, 110, 253, 0.3);
+                            letter-spacing: 1px;
+                            text-transform: uppercase;
+                        ">${item.route}</span>
+                    </td>
+                    <td class="text-center">
+                        ${item.destinazione && item.destinazione.trim() !== '' 
+                            ? `<span style="color: #495057; font-weight: 600; background: linear-gradient(135deg, #e9ecef 0%, #f8f9fa 100%); padding: 6px 12px; border-radius: 12px; display: inline-block; font-size: 0.9rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">${item.destinazione}</span>`
+                            : `<span style="color: #adb5bd; font-weight: 500; background: #f8f9fa; padding: 6px 12px; border-radius: 12px; display: inline-block; font-size: 0.85rem; font-style: italic;">N/A</span>`}
+                    </td>
+                    <td>
+                        ${(item.clienti || 0) > 0 
+                            ? `<button class="btn btn-outline-purple btn-sm btn-clienti" data-route="${item.route}" style="font-weight: 600; cursor: pointer; color: #6f42c1; border-color: #6f42c1; background: linear-gradient(135deg, #e7d5ff 0%, #f3e5f5 100%);">
+                                <i class="bi bi-people me-1"></i>${item.clienti || 0}
+                               </button>`
+                            : `<span style="color: #6f42c1; font-weight: 700; font-size: 1.1rem; background: linear-gradient(135deg, #e7d5ff 0%, #f3e5f5 100%); padding: 4px 10px; border-radius: 12px; display: inline-block;">${item.clienti || 0}</span>`}
+                    </td>
+                    <td class="text-center">${ccBadges}</td>
+                    <td class="text-center"><span style="color: #0056b3; font-weight: 700; font-size: 1.1rem;">${item.totale}</span></td>
+                    <td class="text-center"><span class="badge bg-success" style="font-size: 0.95rem; padding: 6px 12px;">${item.checkati}</span></td>
+                    <td class="text-center">
+                        ${diff > 0 
+                            ? `<button class="btn btn-outline-warning btn-sm btn-details" data-route="${item.route}" style="font-weight: 600; cursor: pointer;">
+                                <i class="bi bi-eye me-1"></i>${diff}
+                               </button>`
+                            : `<span class="badge bg-success" style="font-size: 0.95rem; padding: 6px 12px;">${diff}</span>`}
+                    </td>
+                    <td class="text-center">
+                        ${(item.pezzi_accessori || 0) > 0 
+                            ? `<button class="btn btn-outline-info btn-sm btn-accessori" data-route="${item.route}" style="font-weight: 600; cursor: pointer;">
+                                <i class="bi bi-box-seam me-1"></i>${item.pezzi_accessori || 0}
+                               </button>`
+                            : `<span class="badge bg-info" style="font-size: 0.95rem; padding: 6px 12px;">${item.pezzi_accessori || 0}</span>`}
+                    </td>
+                    <td class="text-center">
+                        ${(item.pezzi_crossdock || 0) > 0 
+                            ? `<button class="btn btn-outline-danger btn-sm btn-crossdock" data-route="${item.route}" style="font-weight: 600; cursor: pointer;">
+                                <i class="bi bi-truck me-1"></i>${item.pezzi_crossdock || 0}
+                               </button>`
+                            : `<span class="badge bg-danger" style="font-size: 0.95rem; padding: 6px 12px;">${item.pezzi_crossdock || 0}</span>`}
+                    </td>
+                    <td class="text-center">${progressBar}</td>
+                `;
+                
+                // Aggiungi event listener al pulsante "To be Check"
+                if (diff > 0) {
+                    const btn = row.querySelector('.btn-details');
+                    if (btn) {
+                        btn.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const routeName = item.route;
+                            showDetails(routeName);
+                            if (detailsModal) detailsModal.show();
+                        });
+                    }
+                }
+                
+                // Aggiungi event listener al pulsante "Clienti"
+                if ((item.clienti || 0) > 0) {
+                    const btnClienti = row.querySelector('.btn-clienti');
+                    if (btnClienti) {
+                        btnClienti.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (clientiModal) {
+                                showClientiDetails(item.route);
+                                clientiModal.show();
+                            }
+                        });
+                    }
+                }
+                
+                // Aggiungi event listener al pulsante "Accessori"
+                if ((item.pezzi_accessori || 0) > 0) {
+                    const btnAccessori = row.querySelector('.btn-accessori');
+                    if (btnAccessori) {
+                        btnAccessori.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            showAccessoriDetails(item.route);
+                            if (accessoriModal) accessoriModal.show();
+                        });
+                    }
+                }
+                
+                // Aggiungi event listener al pulsante "Crossdock"
+                if ((item.pezzi_crossdock || 0) > 0) {
+                    const btnCrossdock = row.querySelector('.btn-crossdock');
+                    if (btnCrossdock) {
+                        btnCrossdock.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            showCrossdockDetails(item.route);
+                            if (crossdockModal) crossdockModal.show();
+                        });
+                    }
+                }
+                
+                resultsBody.appendChild(row);
+            });
+        }
+
+        function setupSearch() {
+            const productSearch = document.getElementById('productSearch');
+            const searchResults = document.getElementById('searchResults');
+
+            productSearch.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.trim().toUpperCase();
+                searchResults.innerHTML = '';
+
+                if (!searchTerm) {
+                    return;
+                }
+
+                if (!analysisData || !analysisData.product_search) {
+                    return;
+                }
+
+                const matchingRoutes = [];
+                for (const [codice, routes] of Object.entries(analysisData.product_search)) {
+                    if (codice.toUpperCase().includes(searchTerm)) {
+                        for (const [route, count] of Object.entries(routes)) {
+                            matchingRoutes.push({
+                                route: route,
+                                codice: codice,
+                                count: count
+                            });
+                        }
+                    }
+                }
+
+                if (matchingRoutes.length === 0) {
+                    searchResults.innerHTML = '<div class="alert alert-info">Nessun giro trovato per questo codice prodotto</div>';
+                } else {
+                    matchingRoutes.forEach(item => {
+                        const resultDiv = document.createElement('div');
+                        resultDiv.className = 'search-result-item';
+                        // Ottieni la descrizione se disponibile
+                        let descrizione = '';
+                        if (analysisData.product_descriptions && analysisData.product_descriptions[item.codice]) {
+                            descrizione = analysisData.product_descriptions[item.codice];
+                        } else if (analysisData.details && analysisData.details[item.route]) {
+                            // Fallback: cerca la descrizione nei dettagli del giro
+                            const routeDetails = analysisData.details[item.route];
+                            const detailWithCode = routeDetails.find(d => d.codice_prodotto === item.codice);
+                            if (detailWithCode && detailWithCode.descrizione) {
+                                descrizione = detailWithCode.descrizione;
+                            }
+                        }
+                        resultDiv.innerHTML = `
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="text-primary">Giro: ${item.route}</strong>
+                                    <div class="text-muted small">
+                                        <strong>CAI:</strong> ${item.codice}${descrizione ? ` - ${descrizione}` : ''}
+                                    </div>
+                                </div>
+                                <span class="badge bg-danger">${item.count} pezzo/i</span>
+                            </div>
+                        `;
+                        resultDiv.addEventListener('click', () => {
+                            showDetails(item.route);
+                            if (detailsModal) detailsModal.show();
+                        });
+                        searchResults.appendChild(resultDiv);
+                    });
+                }
+            });
+        }
+
+        function showDetails(route) {
+            if (!analysisData || !analysisData.details) {
+                console.error('analysisData o details non disponibili', analysisData);
+                return;
+            }
+
+            const details = analysisData.details[route] || [];
+            const modalTitle = document.getElementById('modalTitle');
+            const modalDate = document.getElementById('modalDate');
+            const detailsBody = document.getElementById('detailsBody');
+            const routeStats = document.getElementById('routeStats');
+            
+            if (!modalTitle || !detailsBody || !routeStats) {
+                console.error('Elementi modale non trovati', { modalTitle, detailsBody, routeStats });
+                return;
+            }
+            
+            if (!modalDate) {
+                console.error('modalDate non trovato');
+                return;
+            }
+            
+            // Imposta il titolo con il nome del giro
+            modalTitle.textContent = route;
+            
+            // Imposta la data al centro sopra il titolo
+            if (currentDate) {
+                modalDate.textContent = formatDate(currentDate);
+            } else if (analysisData.dates && analysisData.dates.length > 0) {
+                modalDate.textContent = formatDate(analysisData.dates[0]);
+            } else {
+                modalDate.textContent = '--/--/----';
+            }
+            
+            // Trova le statistiche del giro
+            const routeData = analysisData.statistics.per_giro.find(g => g.route === route);
+            
+            // Mostra le statistiche
+            if (routeData) {
+                routeStats.innerHTML = `
+                    <div class="row justify-content-center">
+                        <div class="col-auto">
+                            <div class="card border-primary" style="min-width: 200px;">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">Totale Pezzi</h6>
+                                    <h3 class="card-title mb-0">${routeData.totale}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="card border-success" style="min-width: 200px;">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">Checked</h6>
+                                    <h3 class="card-title mb-0 text-success">${routeData.checkati}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="card border-warning" style="min-width: 200px;">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">To be Check</h6>
+                                    <h3 class="card-title mb-0 text-warning">${routeData.da_checkare}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            detailsBody.innerHTML = '';
+            
+            if (details.length === 0) {
+                detailsBody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Nessun pezzo da checkare</td></tr>';
+            } else {
+                details.forEach(detail => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><strong>${detail.codice_prodotto || ''}</strong></td>
+                        <td>${detail.cliente || ''}</td>
+                        <td>${detail.descrizione || ''}</td>
+                        <td>${detail.ubicazione || 'N/A'}</td>
+                        <td>${detail.cc || 'MICHELIN'}</td>
+                    `;
+                    detailsBody.appendChild(row);
+                });
+            }
+        }
+
+        function showAccessoriDetails(route) {
+            if (!analysisData || !analysisData.accessori_details) {
+                return;
+            }
+
+            const accessori = analysisData.accessori_details[route] || [];
+            const modalTitle = document.getElementById('accessoriModalTitle');
+            const accessoriBody = document.getElementById('accessoriBody');
+            const routeStats = document.getElementById('accessoriRouteStats');
+            
+            // Imposta il titolo con il nome del giro
+            modalTitle.textContent = `Accessori - ${route}`;
+            
+            // Trova le statistiche del giro
+            const routeData = analysisData.statistics.per_giro.find(g => g.route === route);
+            
+            // Mostra le statistiche
+            if (routeData) {
+                routeStats.innerHTML = `
+                    <div class="row justify-content-center">
+                        <div class="col-auto">
+                            <div class="card border-primary" style="min-width: 200px;">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">Totale Pezzi</h6>
+                                    <h3 class="card-title mb-0">${routeData.totale}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="card border-secondary" style="min-width: 200px;">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">Accessori</h6>
+                                    <h3 class="card-title mb-0 text-secondary">${routeData.pezzi_accessori || 0}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            accessoriBody.innerHTML = '';
+            
+            if (accessori.length === 0) {
+                accessoriBody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Nessun accessorio</td></tr>';
+            } else {
+                accessori.forEach(accessorio => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><strong>${accessorio.codice_prodotto || ''}</strong></td>
+                        <td>${accessorio.cliente || ''}</td>
+                        <td>${accessorio.descrizione || ''}</td>
+                        <td>${accessorio.ubicazione || 'N/A'}</td>
+                        <td><span class="badge ${accessorio.cc === 'EUROMASTER' ? 'bg-info' : accessorio.cc === 'CAMSO' ? 'bg-warning' : 'bg-primary'} text-white">${accessorio.cc || 'MICHELIN'}</span></td>
+                    `;
+                    accessoriBody.appendChild(row);
+                });
+            }
+        }
+
+        function showCrossdockDetails(route) {
+            if (!analysisData || !analysisData.crossdock_details) {
+                return;
+            }
+
+            const crossdock = analysisData.crossdock_details[route] || [];
+            const modalTitle = document.getElementById('crossdockModalTitle');
+            const crossdockBody = document.getElementById('crossdockBody');
+            const routeStats = document.getElementById('crossdockRouteStats');
+            
+            // Imposta il titolo con il nome del giro
+            modalTitle.textContent = `Crossdock - ${route}`;
+            
+            // Trova le statistiche del giro
+            const routeData = analysisData.statistics.per_giro.find(g => g.route === route);
+            
+            // Mostra le statistiche
+            if (routeData) {
+                routeStats.innerHTML = `
+                    <div class="row justify-content-center">
+                        <div class="col-auto">
+                            <div class="card border-primary" style="min-width: 200px;">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">Totale Pezzi</h6>
+                                    <h3 class="card-title mb-0">${routeData.totale}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="card border-warning" style="min-width: 200px;">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">Crossdock</h6>
+                                    <h3 class="card-title mb-0 text-warning">${routeData.pezzi_crossdock || 0}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            crossdockBody.innerHTML = '';
+            
+            if (crossdock.length === 0) {
+                crossdockBody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Nessun pezzo crossdock</td></tr>';
+            } else {
+                crossdock.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><strong>${item.codice_prodotto || ''}</strong></td>
+                        <td>${item.cliente || ''}</td>
+                        <td>${item.descrizione || ''}</td>
+                        <td>${item.ubicazione || 'N/A'}</td>
+                        <td><span class="badge ${item.cc === 'EUROMASTER' ? 'bg-info' : item.cc === 'CAMSO' ? 'bg-warning' : 'bg-primary'} text-white">${item.cc || 'MICHELIN'}</span></td>
+                    `;
+                    crossdockBody.appendChild(row);
+                });
+            }
+        }
+
+        function showClientiDetails(route) {
+            if (!analysisData || !analysisData.clienti_per_giro) {
+                return;
+            }
+
+            const clienti = analysisData.clienti_per_giro[route] || [];
+            const modalTitle = document.getElementById('clientiModalTitle');
+            const clientiBody = document.getElementById('clientiBody');
+            const routeStats = document.getElementById('clientiRouteStats');
+            
+            // Imposta il titolo con il nome del giro
+            modalTitle.textContent = `Clienti - ${route}`;
+            
+            // Trova le statistiche del giro
+            const routeData = analysisData.statistics.per_giro.find(g => g.route === route);
+            
+            // Mostra le statistiche
+            if (routeData) {
+                routeStats.innerHTML = `
+                    <div class="row justify-content-center">
+                        <div class="col-auto">
+                            <div class="card border-primary" style="min-width: 200px;">
+                                <div class="card-body text-center">
+                                    <h6 class="card-subtitle mb-2 text-muted">Totale Clienti</h6>
+                                    <h3 class="card-title mb-0 text-primary">${clienti.length}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            clientiBody.innerHTML = '';
+            
+            if (clienti.length === 0) {
+                clientiBody.innerHTML = '<div class="alert alert-info text-center">Nessun cliente trovato</div>';
+            } else {
+                clienti.forEach((cliente, index) => {
+                    const listItem = document.createElement('div');
+                    listItem.className = 'list-group-item';
+                    listItem.style.cssText = 'border-left: 4px solid #6f42c1; margin-bottom: 8px; border-radius: 8px;';
+                    listItem.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1" style="color: #6f42c1; font-weight: 600;">${index + 1}. ${cliente}</h6>
+                            </div>
+                            <i class="bi bi-person-circle" style="color: #6f42c1; font-size: 1.5rem;"></i>
+                        </div>
+                    `;
+                    clientiBody.appendChild(listItem);
+                });
+            }
+        }
+    </script>
+{% endblock %}
+

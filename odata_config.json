@@ -1,0 +1,11 @@
+{
+  "odata_url": "https://voiapp.fr",
+  "odata_endpoint": "michelinpal/odata/DMX",
+  "requires_auth": true,
+  "auth_type": "basic",
+  "auth_username": "API",
+  "auth_password": "IPA",
+  "auth_token": "",
+  "date_field": "LaunchDate",
+  "site_field": "SiteName"
+}

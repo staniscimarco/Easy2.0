@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurazione OData</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #00457d 0%, #0056b3 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #495057;
+            font-weight: 600;
+            font-size: 1em;
+        }
+        
+        input[type="text"],
+        input[type="url"],
+        input[type="password"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #00457d;
+        }
+        
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .checkbox-wrapper input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .help-text {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 5px;
+            font-style: italic;
+        }
+        
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin-top: 20px;
+            background: linear-gradient(135deg, #00457d 0%, #0056b3 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            display: none;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .auth-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .auth-section.active {
+            display: block;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #00457d;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚙️ Configurazione OData</h1>
+        <p class="subtitle">Configura la connessione al database OData</p>
+        
+        <div id="alert-box" class="alert"></div>
+        
+        <form id="config-form">
+            <div class="form-group">
+                <label for="odata_url">URL Base OData:</label>
+                <input type="url" id="odata_url" name="odata_url" 
+                       value="{{ config.odata_url }}" 
+                       placeholder="https://voiapp.fr" required>
+                <div class="help-text">URL base del servizio OData (es: https://voiapp.fr)</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="odata_endpoint">Endpoint Specifico (opzionale):</label>
+                <input type="text" id="odata_endpoint" name="odata_endpoint" 
+                       value="{{ config.odata_endpoint }}" 
+                       placeholder="odata/DMXData o lascia vuoto">
+                <div class="help-text">Se l'API richiede un endpoint specifico (es: /odata/DMXData). Lascia vuoto se non necessario.</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="date_field">Nome Campo Data:</label>
+                <input type="text" id="date_field" name="date_field" 
+                       value="{{ config.date_field }}" 
+                       placeholder="LaunchDate" required>
+                <div class="help-text">Nome esatto del campo data nel database OData</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="site_field">Nome Campo Sito:</label>
+                <input type="text" id="site_field" name="site_field" 
+                       value="{{ config.site_field }}" 
+                       placeholder="Site" required>
+                <div class="help-text">Nome esatto del campo sito nel database OData</div>
+            </div>
+            
+            <div class="checkbox-wrapper">
+                <input type="checkbox" id="requires_auth" name="requires_auth" 
+                       {% if config.requires_auth %}checked{% endif %}>
+                <label for="requires_auth">Richiede autenticazione</label>
+            </div>
+            
+            <div class="auth-section" id="auth-section">
+                <div class="form-group">
+                    <label for="auth_type">Tipo Autenticazione:</label>
+                    <select id="auth_type" name="auth_type">
+                        <option value="basic" {% if config.auth_type == 'basic' %}selected{% endif %}>Basic Auth (Username/Password)</option>
+                        <option value="bearer" {% if config.auth_type == 'bearer' %}selected{% endif %}>Bearer Token</option>
+                        <option value="api_key" {% if config.auth_type == 'api_key' %}selected{% endif %}>API Key</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="basic-auth-fields">
+                    <label for="auth_username">Nome Utente API:</label>
+                    <input type="text" id="auth_username" name="auth_username" 
+                           value="{{ config.auth_username }}" 
+                           placeholder="Inserisci nome utente API">
+                    
+                    <label for="auth_password" style="margin-top: 15px;">Password API:</label>
+                    <input type="password" id="auth_password" name="auth_password" 
+                           value="{{ config.auth_password }}" 
+                           placeholder="Inserisci password API">
+                    <div class="help-text">Credenziali API per l'autenticazione OData</div>
+                </div>
+                
+                <div class="form-group" id="token-auth-fields" style="display: none;">
+                    <label for="auth_token">Token/Key:</label>
+                    <input type="password" id="auth_token" name="auth_token" 
+                           value="{{ config.auth_token }}" 
+                           placeholder="Inserisci token o API key">
+                    <div class="help-text">Token Bearer o API Key (non verrà mostrato dopo il salvataggio)</div>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn">💾 Salva Configurazione</button>
+        </form>
+        
+        <a href="/estrazione_dati" class="back-link">← Torna all'Estrazione Dati</a>
+        <a href="/" class="back-link" style="display: block; margin-top: 10px;">🏠 Torna alla Home</a>
+    </div>
+    
+    <script>
+        const form = document.getElementById('config-form');
+        const alertBox = document.getElementById('alert-box');
+        const requiresAuth = document.getElementById('requires_auth');
+        const authSection = document.getElementById('auth-section');
+        
+        function showAlert(message, type) {
+            alertBox.textContent = message;
+            alertBox.className = `alert alert-${type}`;
+            alertBox.style.display = 'block';
+            setTimeout(() => {
+                alertBox.style.display = 'none';
+            }, 5000);
+        }
+        
+        const authType = document.getElementById('auth_type');
+        const basicAuthFields = document.getElementById('basic-auth-fields');
+        const tokenAuthFields = document.getElementById('token-auth-fields');
+        
+        requiresAuth.addEventListener('change', function() {
+            if (this.checked) {
+                authSection.classList.add('active');
+            } else {
+                authSection.classList.remove('active');
+            }
+        });
+        
+        authType.addEventListener('change', function() {
+            if (this.value === 'basic') {
+                basicAuthFields.style.display = 'block';
+                tokenAuthFields.style.display = 'none';
+            } else {
+                basicAuthFields.style.display = 'none';
+                tokenAuthFields.style.display = 'block';
+            }
+        });
+        
+        // Mostra sezione auth se già selezionata
+        if (requiresAuth.checked) {
+            authSection.classList.add('active');
+        }
+        
+        // Imposta visibilità iniziale dei campi auth
+        if (authType.value === 'basic') {
+            basicAuthFields.style.display = 'block';
+            tokenAuthFields.style.display = 'none';
+        } else {
+            basicAuthFields.style.display = 'none';
+            tokenAuthFields.style.display = 'block';
+        }
+        
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                odata_url: document.getElementById('odata_url').value,
+                odata_endpoint: document.getElementById('odata_endpoint').value,
+                date_field: document.getElementById('date_field').value,
+                site_field: document.getElementById('site_field').value,
+                requires_auth: document.getElementById('requires_auth').checked,
+                auth_type: document.getElementById('auth_type').value,
+                auth_token: document.getElementById('auth_token').value
+            };
+            
+            try {
+                const response = await fetch('/api/save_odata_config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    showAlert('Configurazione salvata con successo!', 'success');
+                } else {
+                    showAlert(data.error || 'Errore nel salvataggio', 'error');
+                }
+            } catch (error) {
+                showAlert('Errore di connessione: ' + error.message, 'error');
+            }
+        });
+    </script>
+</body>
+</html>
+

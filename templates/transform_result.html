@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risultato Trasformazione</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #00457d 0%, #0056b3 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+        
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .warning-box h2 {
+            color: #856404;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .missing-codes {
+            max-height: 300px;
+            overflow-y: auto;
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            border: 1px solid #ddd;
+        }
+        
+        .missing-codes ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .missing-codes li {
+            padding: 8px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-left: 3px solid #ffc107;
+            border-radius: 3px;
+        }
+        
+        .btn {
+            display: inline-block;
+            width: 100%;
+            padding: 15px;
+            margin-top: 20px;
+            background: linear-gradient(135deg, #00457d 0%, #0056b3 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            margin-top: 10px;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            flex: 1;
+            margin: 0 5px;
+        }
+        
+        .stat-item .number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #00457d;
+        }
+        
+        .stat-item .label {
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Trasformazione Completata</h1>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <div class="number">{{ rows_processed }}</div>
+                <div class="label">Righe Processate</div>
+            </div>
+            <div class="stat-item">
+                <div class="number">{{ rows_transformed }}</div>
+                <div class="label">Codici Sostituiti</div>
+            </div>
+        </div>
+        
+        {% if missing_codes %}
+        <div class="warning-box">
+            <h2>⚠️ ATTENZIONE: Codici Non Trovati nell'Anagrafica</h2>
+            <p>I seguenti <strong>{{ missing_count }}</strong> codici <code>cso_*</code> non sono presenti nell'anagrafica e non sono stati sostituiti:</p>
+            
+            <div class="missing-codes">
+                <ul>
+                    {% for code in missing_codes %}
+                    <li><strong>{{ code }}</strong></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            
+            <p style="margin-top: 15px; color: #856404;">
+                <strong>Nota:</strong> Questi codici sono stati lasciati invariati nel file trasformato. 
+                Verifica se devono essere aggiunti all'anagrafica.
+            </p>
+        </div>
+        {% else %}
+        <div class="info-box">
+            <p style="color: #1976D2; font-weight: bold;">✓ Tutti i codici sono stati trovati e sostituiti correttamente!</p>
+        </div>
+        {% endif %}
+        
+        <a href="/download_file/{{ output_filename }}" class="btn">📥 Scarica File Trasformato</a>
+        <a href="/" class="btn btn-secondary">🏠 Torna alla Home</a>
+    </div>
+</body>
+</html>
+

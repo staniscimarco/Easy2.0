@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+
+{% block title %}Estrazione Dati OData - Easyloading{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #495057;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+    
+    input[type="date"],
+    select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: border-color 0.3s;
+    }
+    
+    input[type="date"]:focus,
+    select:focus {
+        outline: none;
+        border-color: #00457d;
+        box-shadow: 0 0 0 0.2rem rgba(0, 69, 125, 0.25);
+    }
+    
+    .date-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+    
+    @media (max-width: 768px) {
+        .date-row {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .loading {
+        display: none;
+        text-align: center;
+        padding: 2rem;
+    }
+    
+    .loading.active {
+        display: block;
+    }
+    
+    .spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #00457d;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 10px;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .result-box {
+        margin-top: 1.5rem;
+        padding: 1.5rem;
+        background: #f8f9fa;
+        border-radius: 10px;
+        display: none;
+    }
+    
+    .result-box.active {
+        display: block;
+    }
+    
+    .result-box h3 {
+        color: #495057;
+        margin-bottom: 0.75rem;
+    }
+    
+    .result-box p {
+        color: #666;
+        margin: 0.5rem 0;
+    }
+    
+    .download-btn {
+        display: inline-block;
+        margin-top: 1rem;
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .download-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+        color: white;
+    }
+    
+    .links-section {
+        margin-top: 2rem;
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .link-btn {
+        color: #00457d;
+        text-decoration: none;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .link-btn:hover {
+        color: #0056b3;
+        transform: translateX(5px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container fade-in">
+    <div class="row">
+        <div class="col-lg-8 offset-lg-2">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-calendar3 me-2"></i>
+                    Estrazione Dati OData
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">Seleziona le date per estrarre i dati dal database</p>
+                    
+                    <div id="alert-box"></div>
+                    
+                    <form id="estrazione-form">
+                        <div class="form-group">
+                            <label for="site">Sito:</label>
+                            <select id="site" name="site" class="form-control">
+                                <option value="TST - EDC Torino" selected>TST - EDC Torino</option>
+                                <option value="">Tutti i siti</option>
+                            </select>
+                        </div>
+                        
+                        <div class="date-row">
+                            <div class="form-group">
+                                <label for="date_debut">Date de début:</label>
+                                <input type="date" id="date_debut" name="date_debut" class="form-control" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="date_fin">Date de fin:</label>
+                                <input type="date" id="date_fin" name="date_fin" class="form-control" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="date_field">Type de date pour l'extraction:</label>
+                            <select id="date_field" name="date_field" class="form-control">
+                                <option value="LaunchDate">Date de chargement (LaunchDate)</option>
+                                <option value="DateCreation">Date de création</option>
+                                <option value="DateModification">Date de modification</option>
+                            </select>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100" id="submit-btn">
+                            <i class="bi bi-arrow-clockwise me-2"></i>
+                            Mise à jour des données
+                        </button>
+                    </form>
+                    
+                    <div class="loading" id="loading">
+                        <div class="spinner"></div>
+                        <p class="text-muted mt-2">Elaborazione in corso...</p>
+                    </div>
+                    
+                    <div class="result-box" id="result-box">
+                        <h3><i class="bi bi-check-circle-fill text-success me-2"></i>Estrazione Completata</h3>
+                        <p id="result-message"></p>
+                        <a href="#" id="download-link" class="download-btn" style="display: none;">
+                            <i class="bi bi-download me-2"></i>
+                            Scarica File CSV
+                        </a>
+                    </div>
+                    
+                    <div class="links-section">
+                        <a href="/config_odata" class="link-btn">
+                            <i class="bi bi-gear"></i>
+                            Configura OData
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Imposta la data di oggi come default
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('date_debut').value = today;
+    document.getElementById('date_fin').value = today;
+    
+    const form = document.getElementById('estrazione-form');
+    const alertBox = document.getElementById('alert-box');
+    const loading = document.getElementById('loading');
+    const resultBox = document.getElementById('result-box');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    function showAlert(message, type) {
+        if (!message) {
+            alertBox.innerHTML = '';
+            return;
+        }
+        
+        const alertClass = type === 'error' ? 'alert-danger' : type === 'info' ? 'alert-info' : 'alert-success';
+        const icon = type === 'error' ? 'exclamation-triangle' : type === 'info' ? 'info-circle' : 'check-circle';
+        
+        alertBox.innerHTML = `
+            <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                <i class="bi bi-${icon}-fill me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        // Auto-dismiss dopo 5 secondi
+        setTimeout(() => {
+            const alert = alertBox.querySelector('.alert');
+            if (alert) {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }
+        }, 5000);
+    }
+    
+    function showLoading(show) {
+        if (show) {
+            loading.classList.add('active');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Elaborazione in corso...';
+            resultBox.classList.remove('active');
+        } else {
+            loading.classList.remove('active');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-2"></i>Mise à jour des données';
+        }
+    }
+    
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = {
+            date_debut: document.getElementById('date_debut').value,
+            date_fin: document.getElementById('date_fin').value,
+            site: document.getElementById('site').value,
+            date_field: document.getElementById('date_field').value
+        };
+        
+        // Validazione date
+        if (new Date(formData.date_debut) > new Date(formData.date_fin)) {
+            showAlert('La data di inizio deve essere precedente o uguale alla data di fine', 'error');
+            return;
+        }
+        
+        showLoading(true);
+        showAlert('', '');
+        
+        try {
+            const response = await fetch('/api/estrai_dati', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                const alertType = data.warning ? 'info' : 'success';
+                showAlert(data.message || 'Estrazione completata con successo!', alertType);
+                
+                // Mostra i risultati
+                if (data.count === 0) {
+                    document.getElementById('result-message').textContent = 
+                        `Nessun record trovato. File vuoto creato: ${data.filename}`;
+                } else {
+                    document.getElementById('result-message').textContent = 
+                        `Estratti ${data.count} record. File: ${data.filename}`;
+                }
+                
+                // Mostra sempre il link di download se c'è un filename
+                if (data.filename) {
+                    const downloadLink = document.getElementById('download-link');
+                    downloadLink.href = `/api/download_estrazione/${data.filename}`;
+                    downloadLink.style.display = 'inline-block';
+                }
+                
+                resultBox.classList.add('active');
+            } else if (response.status === 401) {
+                // Errore di autenticazione
+                const errorMsg = data.message || data.error || 'Errore di autenticazione. Verifica le credenziali API.';
+                showAlert(errorMsg, 'error');
+                
+                // Se le credenziali non sono configurate, suggerisci di andare alla configurazione
+                if (data.action === 'config_required' || !data.credentials_configured) {
+                    setTimeout(() => {
+                        if (confirm((data.hint || 'Le credenziali non sono configurate.') + '\n\nVuoi andare alla pagina di configurazione per inserire le credenziali?')) {
+                            window.location.href = '/config_odata';
+                        }
+                    }, 1500);
+                } else if (data.hint) {
+                    // Mostra hint se le credenziali sono configurate ma non valide
+                    setTimeout(() => {
+                        alert(data.hint);
+                    }, 1500);
+                }
+            } else {
+                showAlert(data.error || 'Errore durante l\'estrazione', 'error');
+                resultBox.classList.remove('active');
+            }
+        } catch (error) {
+            showAlert('Errore di connessione: ' + error.message, 'error');
+            resultBox.classList.remove('active');
+        } finally {
+            showLoading(false);
+        }
+    });
+</script>
+{% endblock %}

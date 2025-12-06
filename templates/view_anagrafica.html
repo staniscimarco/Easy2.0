@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+
+{% block title %}Anagrafica Articoli - Easyloading{% endblock %}
+
+{% block extra_css %}
+<style>
+    .table-container {
+        overflow-x: auto;
+        margin-top: 20px;
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-sm);
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+    }
+
+    thead {
+        background: var(--primary-gradient);
+        color: white;
+    }
+
+    th, td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    th {
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 1px;
+    }
+
+    tbody tr {
+        transition: var(--transition);
+    }
+
+    tbody tr:hover {
+        background: #f8f9ff;
+        transform: scale(1.01);
+    }
+
+    .code-col {
+        font-family: 'Courier New', monospace;
+        font-weight: 700;
+        color: var(--primary-color);
+        font-size: 1.05rem;
+    }
+
+    .search-box {
+        margin-bottom: 20px;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 0.75rem 1.25rem;
+        border: 2px solid #e9ecef;
+        border-radius: 25px;
+        font-size: 1rem;
+        transition: var(--transition);
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 20px;
+        flex-wrap: wrap;
+    }
+
+    .pagination a, .pagination span {
+        padding: 0.5rem 1rem;
+        border: 2px solid #e9ecef;
+        border-radius: 25px;
+        text-decoration: none;
+        color: var(--text-dark);
+        background: white;
+        transition: var(--transition);
+        font-weight: 600;
+    }
+
+    .pagination a:hover {
+        background: var(--primary-gradient);
+        color: white;
+        border-color: transparent;
+        transform: translateY(-2px);
+    }
+
+    .pagination .current {
+        background: var(--primary-gradient);
+        color: white;
+        border-color: transparent;
+    }
+
+    .pagination .disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    .per-page-selector {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 15px;
+        justify-content: center;
+    }
+
+    .per-page-selector select {
+        padding: 0.5rem 1rem;
+        border: 2px solid #e9ecef;
+        border-radius: 25px;
+        font-size: 0.9rem;
+        transition: var(--transition);
+    }
+
+    .per-page-selector select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+    }
+
+    .stats-badge {
+        background: var(--primary-gradient);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 25px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container fade-in">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <h1 class="section-title mb-0">
+                        <i class="bi bi-database"></i>
+                        Anagrafica Articoli
+                    </h1>
+                </div>
+                <div class="stats-badge">
+                    <i class="bi bi-list-ul"></i>
+                    {% if search_query %}
+                        {{ total_count }} articoli trovati per "{{ search_query }}"
+                    {% else %}
+                        {{ total_count }} articoli totali
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload/Update Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-cloud-upload me-2"></i>
+                    Aggiorna Anagrafica
+                </div>
+                <div class="card-body">
+                    <form action="/upload_anagrafica" method="post" enctype="multipart/form-data">
+                        <div class="file-input-wrapper mb-3">
+                            <input type="file" name="file" accept=".csv" required id="anagrafica-file">
+                            <div class="file-input" id="anagrafica-label">
+                                <i class="bi bi-cloud-upload me-2"></i>
+                                Clicca per selezionare il file CSV anagrafica articoli
+                            </div>
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="update_mode" value="true" id="update-mode" checked>
+                            <label class="form-check-label" for="update-mode">
+                                <strong>Modalità aggiornamento</strong> (aggiorna articoli esistenti e aggiungi nuovi)
+                            </label>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload"></i>
+                            Aggiorna Anagrafica
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Table Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-table me-2"></i>
+                    Articoli
+                </div>
+                <div class="card-body">
+                    <!-- Barra di ricerca -->
+                    <div class="search-box">
+                        <form method="get" action="/view_anagrafica" class="d-flex gap-2">
+                            <input type="text" 
+                                   name="search" 
+                                   class="form-control search-input" 
+                                   placeholder="Cerca per codice o valore..." 
+                                   value="{{ search_query }}"
+                                   autofocus>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search"></i>
+                                Cerca
+                            </button>
+                            {% if search_query %}
+                                <a href="/view_anagrafica" class="btn btn-outline-primary">
+                                    <i class="bi bi-x-circle"></i>
+                                    Cancella
+                                </a>
+                            {% endif %}
+                        </form>
+                    </div>
+                    
+                    <p class="text-muted mb-3">
+                        {% if search_query %}
+                            Trovati <strong>{{ total_count }}</strong> articoli per "{{ search_query }}"
+                        {% else %}
+                            Totale: <strong>{{ total_count }}</strong> articoli
+                        {% endif %}
+                        {% if total_pages > 1 %}
+                            (Pagina {{ page }} di {{ total_pages }})
+                        {% endif %}
+                    </p>
+                    
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>CAI</th>
+                                    <th>ALTRO CODICE</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for code, value in items %}
+                                <tr>
+                                    <td class="code-col">{{ code }}</td>
+                                    <td>{{ value }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Paginazione -->
+                    {% if total_pages > 1 %}
+                    <div class="pagination">
+                        {% if page > 1 %}
+                            <a href="?page=1&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                <i class="bi bi-chevron-double-left"></i>
+                            </a>
+                            <a href="?page={{ page - 1 }}&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        {% else %}
+                            <span class="disabled"><i class="bi bi-chevron-double-left"></i></span>
+                            <span class="disabled"><i class="bi bi-chevron-left"></i></span>
+                        {% endif %}
+                        
+                        {% for p in range(1, total_pages + 1) %}
+                            {% if p == page %}
+                                <span class="current">{{ p }}</span>
+                            {% elif p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
+                                <a href="?page={{ p }}&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ p }}</a>
+                            {% elif p == 4 or p == total_pages - 3 %}
+                                <span>...</span>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page < total_pages %}
+                            <a href="?page={{ page + 1 }}&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                            <a href="?page={{ total_pages }}&per_page={{ per_page }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                <i class="bi bi-chevron-double-right"></i>
+                            </a>
+                        {% else %}
+                            <span class="disabled"><i class="bi bi-chevron-right"></i></span>
+                            <span class="disabled"><i class="bi bi-chevron-double-right"></i></span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Selettore elementi per pagina -->
+                    <div class="per-page-selector">
+                        <label class="mb-0"><strong>Elementi per pagina:</strong></label>
+                        <select onchange="window.location.href='?page=1&per_page=' + this.value + '{% if search_query %}&search={{ search_query }}{% endif %}'" class="form-select" style="width: auto;">
+                            <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
+                            <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                            <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+                            <option value="200" {% if per_page == 200 %}selected{% endif %}>200</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Aggiorna label quando viene selezionato un file
+    document.getElementById('anagrafica-file')?.addEventListener('change', function(e) {
+        const label = document.getElementById('anagrafica-label');
+        if (e.target.files.length > 0) {
+            label.innerHTML = '<i class="bi bi-file-earmark-check me-2"></i>File selezionato: ' + e.target.files[0].name;
+            label.style.borderColor = '#28a745';
+            label.style.background = '#d4edda';
+        } else {
+            label.innerHTML = '<i class="bi bi-cloud-upload me-2"></i>Clicca per selezionare il file CSV anagrafica articoli';
+            label.style.borderColor = '';
+            label.style.background = '';
+        }
+    });
+</script>
+{% endblock %}
