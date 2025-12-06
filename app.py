@@ -18,6 +18,15 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 # Crea la cartella uploads se non esiste
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+# File JSON per salvare l'anagrafica
+ANAGRAFICA_JSON = 'anagrafica.json'
+
+# File JSON per configurazione OData
+ODATA_CONFIG_JSON = 'odata_config.json'
+
+# File JSON per cache estrazioni OData
+ODATA_CACHE_JSON = 'odata_cache.json'
+
 # Inizializza i file JSON se non esistono
 def init_json_files():
     """Inizializza i file JSON se non esistono"""
@@ -50,15 +59,6 @@ def init_json_files():
 
 # Inizializza i file JSON all'avvio
 init_json_files()
-
-# File JSON per salvare l'anagrafica
-ANAGRAFICA_JSON = 'anagrafica.json'
-
-# File JSON per configurazione OData
-ODATA_CONFIG_JSON = 'odata_config.json'
-
-# File JSON per cache estrazioni OData
-ODATA_CACHE_JSON = 'odata_cache.json'
 
 # Variabile globale per memorizzare l'anagrafica
 anagrafica_data = None
