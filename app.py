@@ -722,7 +722,8 @@ def estrai_dati():
             if auth:
                 print("Autenticazione: Basic Auth abilitata")
             
-            response = requests.get(full_url, headers=headers, auth=auth, timeout=30, allow_redirects=True)
+            # Timeout ridotto a 15 secondi per evitare timeout del worker
+            response = requests.get(full_url, headers=headers, auth=auth, timeout=15, allow_redirects=True)
             
             print(f"Status code: {response.status_code}")
             print(f"Content-Type: {response.headers.get('Content-Type', 'N/A')}")
@@ -1966,7 +1967,8 @@ def risultati(date_str):
             app.logger.info(f"Inizio richiesta OData per {date_str}")
             app.logger.info(f"URL completo: {full_url}")
             app.logger.info(f"Auth configurata: {auth is not None}, username: {config.get('auth_username', 'N/A')}")
-            response = requests.get(full_url, headers=headers, auth=auth, timeout=30, allow_redirects=True)
+            # Timeout ridotto a 15 secondi per evitare timeout del worker
+            response = requests.get(full_url, headers=headers, auth=auth, timeout=15, allow_redirects=True)
             app.logger.info(f"Risposta OData ricevuta: status={response.status_code}, size={len(response.content)} bytes")
             api_available = True
         except requests.exceptions.Timeout as e:
