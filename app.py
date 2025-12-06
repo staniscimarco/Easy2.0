@@ -1834,9 +1834,11 @@ def estrai_e_analizza():
 @app.route('/risultati/<date_str>')
 def risultati(date_str):
     """Pagina a tutto schermo per visualizzare i risultati analizzati per una data specifica
-    Fa chiamata OData diretta con timeout breve, usa cache come fallback"""
+    Fa chiamata OData diretta con timeout breve, usa JSON salvato come fallback"""
     try:
-        app.logger.info(f"Inizio estrazione risultati per data: {date_str}")
+        app.logger.info(f"=== INIZIO estrazione risultati per data: {date_str} ===")
+        app.logger.info(f"Working directory: {os.getcwd()}")
+        app.logger.info(f"Upload folder: {app.config['UPLOAD_FOLDER']} (abs: {os.path.abspath(app.config['UPLOAD_FOLDER'])})")
         
         # Estrai e analizza i dati per la data specificata
         site = 'TST - EDC Torino'
@@ -2155,35 +2157,108 @@ def risultati(date_str):
         app.logger.info(f"Rendering template risultati per {date_str}")
         return render_template('risultati.html', data=analysis_result)
         
+    except requests.exceptions.Timeout as e:
+        import traceback
+        app.logger.error(f"TIMEOUT OData per {date_str}: {e}")
+        app.logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        # Prova a usare JSON salvato
+        json_data = get_json_extraction(date_str, 'TST - EDC Torino')
+        if json_data:
+            app.logger.info(f"Usando JSON salvato dopo timeout per {date_str}")
+            result = json_data.copy()
+            result['from_json'] = True
+            result['api_available'] = False
+            result['error'] = f'Timeout nella richiesta OData (oltre 10 secondi), dati dal JSON salvato'
+            return render_template('risultati.html', data=result)
+        
+        # Nessun JSON disponibile
+        error_data = {
+            'success': False,
+            'error': f'Timeout nella richiesta OData (oltre 10 secondi). Riprova più tardi.',
+            'date': date_str,
+            'statistics': {
+                'totali': {
+                    'totale_pezzi': 0, 'pezzi_checkati': 0, 'pezzi_da_checkare': 0,
+                    'pezzi_accessori': 0, 'pezzi_crossdock': 0, 'totale_giri': 0,
+                    'giri_completati': 0, 'giri_non_completati': 0,
+                    'percentuale_completamento': 0, 'percentuale_completamento_giri': 0
+                },
+                'per_giro': [], 'per_cc': []
+            },
+            'details': {}, 'accessori_details': {}, 'crossdock_details': {},
+            'clienti_per_giro': {}, 'product_search': {}, 'product_descriptions': {}
+        }
+        return render_template('risultati.html', data=error_data)
+        
+    except requests.exceptions.RequestException as e:
+        import traceback
+        app.logger.error(f"ERRORE richiesta OData per {date_str}: {e}")
+        app.logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        # Prova a usare JSON salvato
+        json_data = get_json_extraction(date_str, 'TST - EDC Torino')
+        if json_data:
+            app.logger.info(f"Usando JSON salvato dopo errore richiesta per {date_str}")
+            result = json_data.copy()
+            result['from_json'] = True
+            result['api_available'] = False
+            result['error'] = f'Errore di connessione OData: {str(e)}, dati dal JSON salvato'
+            return render_template('risultati.html', data=result)
+        
+        # Nessun JSON disponibile
+        error_data = {
+            'success': False,
+            'error': f'Errore di connessione all\'API OData: {str(e)}',
+            'date': date_str,
+            'statistics': {
+                'totali': {
+                    'totale_pezzi': 0, 'pezzi_checkati': 0, 'pezzi_da_checkare': 0,
+                    'pezzi_accessori': 0, 'pezzi_crossdock': 0, 'totale_giri': 0,
+                    'giri_completati': 0, 'giri_non_completati': 0,
+                    'percentuale_completamento': 0, 'percentuale_completamento_giri': 0
+                },
+                'per_giro': [], 'per_cc': []
+            },
+            'details': {}, 'accessori_details': {}, 'crossdock_details': {},
+            'clienti_per_giro': {}, 'product_search': {}, 'product_descriptions': {}
+        }
+        return render_template('risultati.html', data=error_data)
+        
     except Exception as e:
         import traceback
-        app.logger.error(f"Errore estrazione risultati per {date_str}: {traceback.format_exc()}")
+        app.logger.error(f"ERRORE GENERALE estrazione risultati per {date_str}: {e}")
+        app.logger.error(f"Traceback completo: {traceback.format_exc()}")
+        
+        # Prova a usare JSON salvato come ultimo tentativo
+        try:
+            json_data = get_json_extraction(date_str, 'TST - EDC Torino')
+            if json_data:
+                app.logger.info(f"Usando JSON salvato dopo errore generale per {date_str}")
+                result = json_data.copy()
+                result['from_json'] = True
+                result['api_available'] = False
+                result['error'] = f'Errore durante l\'estrazione: {str(e)}, dati dal JSON salvato'
+                return render_template('risultati.html', data=result)
+        except:
+            pass
+        
+        # Nessun JSON disponibile, mostra errore
         error_data = {
             'success': False,
             'error': f'Errore durante l\'estrazione: {str(e)}',
             'date': date_str,
             'statistics': {
                 'totali': {
-                    'totale_pezzi': 0,
-                    'pezzi_checkati': 0,
-                    'pezzi_da_checkare': 0,
-                    'pezzi_accessori': 0,
-                    'pezzi_crossdock': 0,
-                    'totale_giri': 0,
-                    'giri_completati': 0,
-                    'giri_non_completati': 0,
-                    'percentuale_completamento': 0,
-                    'percentuale_completamento_giri': 0
+                    'totale_pezzi': 0, 'pezzi_checkati': 0, 'pezzi_da_checkare': 0,
+                    'pezzi_accessori': 0, 'pezzi_crossdock': 0, 'totale_giri': 0,
+                    'giri_completati': 0, 'giri_non_completati': 0,
+                    'percentuale_completamento': 0, 'percentuale_completamento_giri': 0
                 },
-                'per_giro': [],
-                'per_cc': []
+                'per_giro': [], 'per_cc': []
             },
-            'details': {},
-            'accessori_details': {},
-            'crossdock_details': {},
-            'clienti_per_giro': {},
-            'product_search': {},
-            'product_descriptions': {}
+            'details': {}, 'accessori_details': {}, 'crossdock_details': {},
+            'clienti_per_giro': {}, 'product_search': {}, 'product_descriptions': {}
         }
         return render_template('risultati.html', data=error_data)
 
