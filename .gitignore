@@ -51,4 +51,8 @@ uploads/*
 
 # Cache
 *.cache
+odata_cache.json
+
+# Local data files (should use MongoDB in production)
+anagrafica.json
 
