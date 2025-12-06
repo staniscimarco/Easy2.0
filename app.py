@@ -490,30 +490,58 @@ def get_json_extraction(date_str, site='TST - EDC Torino'):
 
 def save_json_extraction(date_str, site, analysis_result):
     """Salva un'estrazione come file JSON nella cartella uploads"""
-    uploads_dir = app.config['UPLOAD_FOLDER']
-    os.makedirs(uploads_dir, exist_ok=True)
-    
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    date_pattern = date_str.replace('-', '')
-    filename = f"estrazione_{date_pattern}_{timestamp}.json"
-    filepath = os.path.join(uploads_dir, filename)
-    
-    # Salva i dati analizzati
-    json_data = {
-        'date': date_str,
-        'site': site,
-        'extraction_date': datetime.now().isoformat(),
-        'count': analysis_result.get('count', 0),
-        **analysis_result  # Include tutte le statistiche e dettagli
-    }
-    
     try:
+        uploads_dir = app.config['UPLOAD_FOLDER']
+        app.logger.info(f"Tentativo di salvataggio JSON in: {uploads_dir} (path assoluto: {os.path.abspath(uploads_dir)})")
+        
+        # Crea la directory se non esiste
+        try:
+            os.makedirs(uploads_dir, exist_ok=True)
+            app.logger.info(f"Directory uploads creata/verificata: {uploads_dir}")
+        except Exception as e:
+            app.logger.error(f"Errore nella creazione directory {uploads_dir}: {e}")
+            return None
+        
+        # Verifica permessi di scrittura
+        if not os.access(uploads_dir, os.W_OK):
+            app.logger.error(f"Directory {uploads_dir} non ha permessi di scrittura")
+            return None
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        date_pattern = date_str.replace('-', '')
+        filename = f"estrazione_{date_pattern}_{timestamp}.json"
+        filepath = os.path.join(uploads_dir, filename)
+        
+        app.logger.info(f"Salvataggio file JSON: {filepath}")
+        
+        # Salva i dati analizzati
+        json_data = {
+            'date': date_str,
+            'site': site,
+            'extraction_date': datetime.now().isoformat(),
+            'count': analysis_result.get('count', 0),
+            **analysis_result  # Include tutte le statistiche e dettagli
+        }
+        
+        # Prova a salvare
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(json_data, f, ensure_ascii=False, indent=2)
-        app.logger.info(f"Estrazione salvata in JSON: {filename}")
-        return filename
+        
+        # Verifica che il file sia stato creato
+        if os.path.exists(filepath):
+            file_size = os.path.getsize(filepath)
+            app.logger.info(f"Estrazione salvata in JSON: {filename} (dimensione: {file_size} bytes)")
+            return filename
+        else:
+            app.logger.error(f"File {filename} non creato dopo il salvataggio")
+            return None
+            
+    except PermissionError as e:
+        app.logger.error(f"Errore di permessi nel salvataggio JSON: {e}")
+        return None
     except Exception as e:
-        app.logger.error(f"Errore nel salvataggio JSON {filename}: {e}")
+        import traceback
+        app.logger.error(f"Errore nel salvataggio JSON: {e}\n{traceback.format_exc()}")
         return None
 
 
@@ -1891,8 +1919,11 @@ def risultati(date_str):
         records = []
         try:
             app.logger.info(f"Inizio richiesta OData per {date_str} (timeout 10s)")
+            app.logger.info(f"URL completo: {full_url}")
+            app.logger.info(f"Auth configurata: {auth is not None}")
+            
             response = requests.get(full_url, headers=headers, auth=auth, timeout=10, allow_redirects=True)
-            app.logger.info(f"Risposta OData ricevuta: status={response.status_code}")
+            app.logger.info(f"Risposta OData ricevuta: status={response.status_code}, size={len(response.content) if response.content else 0} bytes")
             
             if response.status_code == 200:
                 data_json = response.json()
@@ -2063,6 +2094,7 @@ def risultati(date_str):
                 record['LoadingName'] = loadings_dict.get(loading_id, '')
         
         # Analizza i dati
+        app.logger.info(f"Analisi di {len(records)} record per {date_str}")
         analysis_result = analyze_odata_data(records)
         
         if not analysis_result.get('success'):
@@ -2112,10 +2144,15 @@ def risultati(date_str):
         analysis_result['api_available'] = True
         
         # Salva SEMPRE in JSON per mantenere lo storico
+        app.logger.info(f"Tentativo di salvataggio JSON per {date_str}")
         saved_filename = save_json_extraction(date_str, site, analysis_result)
         if saved_filename:
             analysis_result['saved_filename'] = saved_filename
+            app.logger.info(f"JSON salvato con successo: {saved_filename}")
+        else:
+            app.logger.warning(f"Impossibile salvare JSON per {date_str}, ma continuo comunque")
         
+        app.logger.info(f"Rendering template risultati per {date_str}")
         return render_template('risultati.html', data=analysis_result)
         
     except Exception as e:
