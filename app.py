@@ -2227,34 +2227,6 @@ def risultati(date_str):
         
         # Renderizza la pagina risultati
         return render_template('risultati.html', data=analysis_result)
-            error_data = {
-                'success': False,
-                'error': f'Errore nel parsing della risposta: {str(e)}',
-                'date': date_str,
-                'statistics': {
-                    'totali': {
-                        'totale_pezzi': 0,
-                        'pezzi_checkati': 0,
-                        'pezzi_da_checkare': 0,
-                        'pezzi_accessori': 0,
-                        'pezzi_crossdock': 0,
-                        'totale_giri': 0,
-                        'giri_completati': 0,
-                        'giri_non_completati': 0,
-                        'percentuale_completamento': 0,
-                        'percentuale_completamento_giri': 0
-                    },
-                    'per_giro': [],
-                    'per_cc': []
-                },
-                'details': {},
-                'accessori_details': {},
-                'crossdock_details': {},
-                'clienti_per_giro': {},
-                'product_search': {},
-                'product_descriptions': {}
-            }
-            return render_template('risultati.html', data=error_data)
         
     except Exception as e:
         import traceback
