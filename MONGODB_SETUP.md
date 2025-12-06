@@ -57,8 +57,13 @@ Per evitare di perdere i dati JSON ad ogni deploy su Vercel, abbiamo implementat
 
    | Name | Value |
    |------|-------|
-   | `MONGODB_URI` | `mongodb+srv://easyloading:TUAPASSWORD@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority` |
+   | `MONGODB_URI` | `mongodb+srv://<USERNAME>:<PASSWORD>@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority` |
    | `MONGODB_DB_NAME` | `easyloading` |
+   
+   ⚠️ **IMPORTANTE**: 
+   - Sostituisci `<USERNAME>` con il tuo username MongoDB
+   - Sostituisci `<PASSWORD>` con la tua password MongoDB
+   - Sostituisci `xxxxx` con il nome del tuo cluster
 
 4. Clicca su **Save**
 

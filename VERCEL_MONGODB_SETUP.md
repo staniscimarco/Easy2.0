@@ -2,10 +2,12 @@
 
 ## Connection String Completa
 
-Usa questa connection string su Vercel (con parametri ottimizzati):
+⚠️ **IMPORTANTE**: Le credenziali MongoDB devono essere configurate come variabili d'ambiente su Vercel, NON hardcoded nel codice!
+
+Usa questa connection string su Vercel (sostituisci con le TUE credenziali):
 
 ```
-mongodb+srv://staniscimarco_db_user:wRVnY9xafcVFWdLH@cluster0.dznab1r.mongodb.net/?retryWrites=true&w=majority
+mongodb+srv://<USERNAME>:<PASSWORD>@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority
 ```
 
 ## 📋 Passi per Configurare su Vercel
@@ -20,7 +22,9 @@ mongodb+srv://staniscimarco_db_user:wRVnY9xafcVFWdLH@cluster0.dznab1r.mongodb.ne
 
 #### Variabile 1: MONGODB_URI
 - **Name**: `MONGODB_URI`
-- **Value**: `mongodb+srv://staniscimarco_db_user:wRVnY9xafcVFWdLH@cluster0.dznab1r.mongodb.net/?retryWrites=true&w=majority`
+- **Value**: `mongodb+srv://<USERNAME>:<PASSWORD>@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority`
+  - ⚠️ **Sostituisci** `<USERNAME>` e `<PASSWORD>` con le tue credenziali MongoDB
+  - ⚠️ **Sostituisci** `xxxxx` con il nome del tuo cluster
 - **Environment**: Seleziona tutte (Production, Preview, Development)
 
 #### Variabile 2: MONGODB_DB_NAME

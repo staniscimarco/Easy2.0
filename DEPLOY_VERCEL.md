@@ -43,10 +43,13 @@ Assicurati che queste variabili d'ambiente siano configurate:
 
 1. Vai su **Settings** → **Environment Variables**
 2. Aggiungi:
-   - `MONGODB_URI`: `mongodb+srv://staniscimarco_db_user:wRVnY9xafcVFWdLH@cluster0.dznab1r.mongodb.net/?retryWrites=true&w=majority`
+   - `MONGODB_URI`: `mongodb+srv://<USERNAME>:<PASSWORD>@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority`
+     - ⚠️ **Sostituisci** `<USERNAME>`, `<PASSWORD>` e `xxxxx` con le tue credenziali MongoDB
    - `MONGODB_DB_NAME`: `easyloading`
    - `FLASK_ENV`: `production`
    - `VERCEL`: `1`
+   
+   ⚠️ **SICUREZZA**: Le credenziali MongoDB devono essere configurate solo come variabili d'ambiente su Vercel, MAI hardcoded nel codice!
 
 ## 📊 Verifica Deploy Completato
 
