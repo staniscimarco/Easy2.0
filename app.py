@@ -32,6 +32,7 @@ def init_json_files():
     """Inizializza i file JSON se non esistono"""
     # Inizializza odata_config.json se non esiste
     if not os.path.exists(ODATA_CONFIG_JSON):
+        app.logger.info(f"File {ODATA_CONFIG_JSON} non trovato, creazione con valori di default")
         default_config = {
             'odata_url': 'https://voiapp.fr',
             'odata_endpoint': 'michelinpal/odata/DMX',
@@ -46,8 +47,17 @@ def init_json_files():
         try:
             with open(ODATA_CONFIG_JSON, 'w', encoding='utf-8') as f:
                 json.dump(default_config, f, ensure_ascii=False, indent=2)
+            app.logger.info(f"File {ODATA_CONFIG_JSON} creato con successo")
         except Exception as e:
-            app.logger.warning(f"Impossibile creare {ODATA_CONFIG_JSON}: {e}")
+            app.logger.error(f"Impossibile creare {ODATA_CONFIG_JSON}: {e}")
+    else:
+        app.logger.info(f"File {ODATA_CONFIG_JSON} trovato, caricamento configurazione")
+        try:
+            with open(ODATA_CONFIG_JSON, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            app.logger.info(f"Configurazione OData caricata: URL={config.get('odata_url')}, Endpoint={config.get('odata_endpoint')}, Username={config.get('auth_username')}")
+        except Exception as e:
+            app.logger.error(f"Errore nel caricamento {ODATA_CONFIG_JSON}: {e}")
     
     # Inizializza odata_cache.json se non esiste
     if not os.path.exists(ODATA_CACHE_JSON):
