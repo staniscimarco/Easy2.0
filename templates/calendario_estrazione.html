@@ -1397,7 +1397,8 @@
                     extractedDates.clear();
                     newExtractedDates.forEach(date => extractedDates.add(date));
                     
-                    console.log(`Caricate ${extractedDates.size} date estratte:`, Array.from(extractedDates));
+                    // Log solo in caso di debug (commentato per produzione)
+                    // console.log(`Caricate ${extractedDates.size} date estratte:`, Array.from(extractedDates));
                     
                     // NON chiamare renderCalendar() qui - sarà chiamato dal chiamante
                     return Promise.resolve();
@@ -1458,18 +1459,15 @@
                 dayElement.className = 'calendar-day';
                 dayElement.textContent = day;
                 
-                // DEBUG: log per verificare lo stato
-                if (isExtracted) {
-                    console.log(`Giorno ${day} (${dateStr}) è estratto - aggiungo classe extracted`);
-                }
-                
-                // Ordine importante: extracted ha priorità su selected e today (come nel calendario salvataggio)
-                // SEMPRE aggiungi extracted se la data è nel set, indipendentemente da altre classi
+                // Ordine CRITICO: extracted ha SEMPRE priorità su selected e today
+                // Questo assicura che i giorni con JSON rimangano sempre verdi
                 if (isExtracted) {
                     dayElement.classList.add('extracted');
-                }
-                
-                if (isSelected && !isExtracted) {
+                    // Forza lo stile verde anche se ci sono altre classi
+                    dayElement.style.background = '#28a745';
+                    dayElement.style.color = 'white';
+                    dayElement.style.borderColor = '#20c997';
+                } else if (isSelected) {
                     dayElement.classList.add('selected');
                 }
                 
