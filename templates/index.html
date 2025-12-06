@@ -180,20 +180,94 @@
         }
     });
 
-    // Gestione submit form trasformazione
+    // Gestione submit form trasformazione con download automatico
     document.getElementById('transform-form')?.addEventListener('submit', function(e) {
+        e.preventDefault();
         const btn = document.getElementById('transform-btn');
         const fileInput = document.getElementById('transform-file');
+        const form = document.getElementById('transform-form');
         
         if (!fileInput.files || fileInput.files.length === 0) {
-            e.preventDefault();
             alert('Seleziona un file CSV da trasformare');
             return false;
         }
         
         // Mostra indicatore di caricamento
+        const originalBtnText = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Elaborazione in corso...';
+        
+        // Crea FormData
+        const formData = new FormData(form);
+        
+        // Invia richiesta fetch
+        fetch('/upload_transform', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            // Controlla se è un file CSV (download) o HTML (pagina con errori)
+            const contentType = response.headers.get('content-type');
+            
+            if (contentType && contentType.includes('text/csv')) {
+                // È un file CSV, scarica automaticamente
+                return response.blob().then(blob => {
+                    // Crea URL temporaneo e scarica
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    // Ottieni il nome file dall'header Content-Disposition o usa default
+                    const contentDisposition = response.headers.get('content-disposition');
+                    let filename = 'YDMXEL_trasformato.csv';
+                    if (contentDisposition) {
+                        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                        if (filenameMatch && filenameMatch[1]) {
+                            filename = filenameMatch[1].replace(/['"]/g, '');
+                        }
+                    }
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                    
+                    // Reset bottone
+                    btn.disabled = false;
+                    btn.innerHTML = originalBtnText;
+                    
+                    // Mostra messaggio di successo
+                    alert('File trasformato e scaricato con successo!');
+                });
+            } else {
+                // È HTML (pagina con errori o codici mancanti)
+                return response.text().then(html => {
+                    // Se contiene codici mancanti, mostra la pagina
+                    if (html.includes('missing_codes') || html.includes('Codici Non Trovati')) {
+                        // Apri in una nuova finestra o mostra inline
+                        const newWindow = window.open('', '_blank');
+                        newWindow.document.write(html);
+                        newWindow.document.close();
+                    } else {
+                        // Reindirizza alla pagina di errore o mostra messaggio
+                        window.location.href = '/upload_transform';
+                    }
+                    
+                    // Reset bottone
+                    btn.disabled = false;
+                    btn.innerHTML = originalBtnText;
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Errore:', error);
+            alert('Errore durante la trasformazione: ' + error.message);
+            
+            // Reset bottone
+            btn.disabled = false;
+            btn.innerHTML = originalBtnText;
+        });
+        
+        return false;
     });
 </script>
 {% endblock %}
