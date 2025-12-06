@@ -48,8 +48,16 @@ Assicurati che queste variabili d'ambiente siano configurate:
    - `MONGODB_DB_NAME`: `easyloading`
    - `FLASK_ENV`: `production`
    - `VERCEL`: `1`
+   - `VERCEL_FUNCTION_MAX_DURATION`: `300` (opzionale, per timeout più lunghi)
+   - `VERCEL_FUNCTION_MEMORY`: `3008` (opzionale, per più memoria)
    
    ⚠️ **SICUREZZA**: Le credenziali MongoDB devono essere configurate solo come variabili d'ambiente su Vercel, MAI hardcoded nel codice!
+
+### ⚠️ Nota Importante sulla Configurazione
+
+Il file `vercel.json` usa solo `builds` (metodo legacy) per evitare conflitti con `functions`. 
+Le impostazioni di `maxDuration` e `memory` possono essere configurate tramite variabili d'ambiente sopra indicate, 
+oppure tramite la dashboard di Vercel in **Settings** → **Functions**.
 
 ## 📊 Verifica Deploy Completato
 
