@@ -1864,13 +1864,13 @@ def estrai_e_analizza():
 
 @app.route('/risultati/<date_str>')
 def risultati(date_str):
-    """Pagina a tutto schermo per visualizzare i risultati analizzati per una data specifica"""
+    """Pagina a tutto schermo per visualizzare i risultati analizzati per una data specifica
+    Usa SOLO dati dalla cache - le estrazioni vengono fatte tramite il calendario con API asincrona"""
     try:
-        app.logger.info(f"Inizio estrazione risultati per data: {date_str}")
+        app.logger.info(f"Visualizzazione risultati per data: {date_str} (solo cache, nessuna chiamata OData)")
         
         # Estrai e analizza i dati per la data specificata
         site = 'TST - EDC Torino'
-        date_field = 'LaunchDate'
         
         # Converti la data
         try:
@@ -1879,336 +1879,24 @@ def risultati(date_str):
             flash('Formato data non valido', 'error')
             return redirect(url_for('calendario_estrazione'))
         
-        # Calcola se la data è entro 7 giorni (per decidere se usare la cache)
-        today = date.today()
-        days_diff = (today - date_start).days
-        is_within_7_days = days_diff <= 7
+        # Controlla SEMPRE la cache (non facciamo chiamate OData sincrone)
+        cached_data, cache_timestamp = get_cached_extraction(date_str, site)
         
-        # Controlla la cache SOLO se la data è oltre 7 giorni
-        cached_data = None
-        cache_timestamp = None
-        if not is_within_7_days:
-            cached_data, cache_timestamp = get_cached_extraction(date_str, site)
-            app.logger.info(f"Data {date_str} è oltre 7 giorni (differenza: {days_diff} giorni), cache disponibile: {cached_data is not None}")
+        if cached_data:
+            app.logger.info(f"Cache trovata per {date_str}, visualizzazione dati")
+            result = cached_data.copy()
+            result['from_cache'] = True
+            result['cache_timestamp'] = cache_timestamp
+            result['api_available'] = False
+            return render_template('risultati.html', data=result)
         else:
-            app.logger.info(f"Data {date_str} è entro 7 giorni (differenza: {days_diff} giorni), sempre chiamare API per dati aggiornati")
-        
-        # Carica configurazione OData
-        config = load_odata_config()
-        odata_base_url = config.get('odata_url', 'https://voiapp.fr')
-        odata_endpoint = config.get('odata_endpoint', 'michelinpal/odata/DMX')
-        date_field = config.get('date_field', date_field)
-        site_field = config.get('site_field', 'SiteName')
-        
-        # Costruisci URL completo
-        if odata_endpoint:
-            odata_url = f"{odata_base_url.rstrip('/')}/{odata_endpoint.lstrip('/')}"
-        else:
-            odata_url = f"{odata_base_url.rstrip('/')}/michelinpal/odata/DMX"
-        
-        # Estrai sito (per Torino: "TST - EDC Torino" -> "TST")
-        site_code = ''
-        if site and site != '' and site != 'Tous':
-            if '-' in site:
-                site_code = site.split('-')[0].strip()
-            else:
-                site_code = site[:3].strip()
-        
-        # Costruisci filtro come nel VBA (stesso giorno)
-        day_start = date_start.day
-        month = date_start.month
-        year = date_start.year
-        
-        filters = []
-        if site_code:
-            filters.append(f"{site_field} eq '{site_code}'")
-        
-        # Filtro data: stesso giorno
-        filters.append(f"day({date_field}) eq {day_start} and month({date_field}) eq {month} and year({date_field}) eq {year}")
-        
-        filter_query = ' and '.join(filters)
-        
-        # Campi da selezionare
-        detail_col = "Id,Route,ShipTo,CustomerName,CustomerAddress,CustomerPostCode,CustomerCity,PAYS,CAI,ItemDescription,SiteName,Weight,LaunchDate,Carrier,CarrierMode,Reservation,InvRem,PalletId,PalletScanDate,TransportPalletId,TransportPalletScanDate,LoadingId,LoadingDate,REF,LoadingPosition,GROUPE,Quantity,CustomerRef,EXPDLVDAT,CAC,REF_CLIENT,ADD,YDMXId"
-        
-        # Costruisci URL
-        filter_encoded = quote(filter_query)
-        select_encoded = quote(detail_col)
-        full_url = f"{odata_url}?$filter={filter_encoded}&$orderby={date_field}&$select={select_encoded}"
-        
-        app.logger.info(f"URL OData: {full_url}")
-        
-        # Headers per OData
-        headers = {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-        }
-        
-        # Autenticazione
-        auth = None
-        if config.get('requires_auth'):
-            auth_type = config.get('auth_type', 'basic')
-            auth_username = config.get('auth_username', '').strip()
-            auth_password = config.get('auth_password', '').strip()
-            
-            app.logger.info(f"Configurazione autenticazione: requires_auth={config.get('requires_auth')}, auth_type={auth_type}, username={auth_username if auth_username else 'NON CONFIGURATO'}")
-            
-            if auth_type == 'basic' and auth_username and auth_password:
-                from requests.auth import HTTPBasicAuth
-                auth = HTTPBasicAuth(auth_username, auth_password)
-                app.logger.info(f"Autenticazione Basic configurata: username={auth_username}")
-            else:
-                app.logger.warning(f"Autenticazione richiesta ma credenziali non configurate correttamente: username={auth_username}, password={'***' if auth_password else 'NON CONFIGURATO'}")
-        
-        # Fai la richiesta DMX
-        api_available = False
-        records = []
-        try:
-            app.logger.info(f"Inizio richiesta OData per {date_str}")
-            app.logger.info(f"URL completo: {full_url}")
-            app.logger.info(f"Auth configurata: {auth is not None}, username: {config.get('auth_username', 'N/A')}")
-            # Timeout ridotto a 15 secondi per evitare timeout del worker
-            response = requests.get(full_url, headers=headers, auth=auth, timeout=15, allow_redirects=True)
-            app.logger.info(f"Risposta OData ricevuta: status={response.status_code}, size={len(response.content)} bytes")
-            api_available = True
-        except requests.exceptions.Timeout as e:
-            app.logger.error(f"Timeout nella richiesta OData per {date_str}: {e}")
-            # Se c'è cache disponibile, usala
-            if cached_data:
-                app.logger.info(f"Timeout OData per {date_str}, uso cache disponibile")
-                result = cached_data.copy()
-                result['from_cache'] = True
-                result['cache_timestamp'] = cache_timestamp
-                result['api_available'] = False
-                result['error'] = 'Timeout nella richiesta OData, dati dalla cache'
-                return render_template('risultati.html', data=result)
-            else:
-                error_data = {
-                    'success': False,
-                    'error': f'Timeout nella richiesta OData: {str(e)}',
-                    'date': date_str,
-                    'statistics': {
-                        'totali': {
-                            'totale_pezzi': 0,
-                            'pezzi_checkati': 0,
-                            'pezzi_da_checkare': 0,
-                            'pezzi_accessori': 0,
-                            'pezzi_crossdock': 0,
-                            'totale_giri': 0,
-                            'giri_completati': 0,
-                            'giri_non_completati': 0,
-                            'percentuale_completamento': 0,
-                            'percentuale_completamento_giri': 0
-                        },
-                        'per_giro': [],
-                        'per_cc': []
-                    },
-                    'details': {},
-                    'accessori_details': {},
-                    'crossdock_details': {},
-                    'clienti_per_giro': {},
-                    'product_search': {},
-                    'product_descriptions': {}
-                }
-                return render_template('risultati.html', data=error_data)
-        except requests.exceptions.RequestException as e:
-            app.logger.error(f"Errore di connessione OData per {date_str}: {e}")
-            # Se c'è cache disponibile, usala
-            if cached_data:
-                app.logger.info(f"Errore OData per {date_str}, uso cache disponibile")
-                result = cached_data.copy()
-                result['from_cache'] = True
-                result['cache_timestamp'] = cache_timestamp
-                result['api_available'] = False
-                result['error'] = f'Errore di connessione OData: {str(e)}, dati dalla cache'
-                return render_template('risultati.html', data=result)
-            else:
-                error_data = {
-                    'success': False,
-                    'error': f'Errore di connessione all\'API OData: {str(e)}',
-                    'date': date_str,
-                    'statistics': {
-                        'totali': {
-                            'totale_pezzi': 0,
-                            'pezzi_checkati': 0,
-                            'pezzi_da_checkare': 0,
-                            'pezzi_accessori': 0,
-                            'pezzi_crossdock': 0,
-                            'totale_giri': 0,
-                            'giri_completati': 0,
-                            'giri_non_completati': 0,
-                            'percentuale_completamento': 0,
-                            'percentuale_completamento_giri': 0
-                        },
-                        'per_giro': [],
-                        'per_cc': []
-                    },
-                    'details': {},
-                    'accessori_details': {},
-                    'crossdock_details': {},
-                    'clienti_per_giro': {},
-                    'product_search': {},
-                    'product_descriptions': {}
-                }
-                return render_template('risultati.html', data=error_data)
-        
-        api_has_data = False
-        if response.status_code == 200:
-            # Parsa JSON solo se la risposta è OK
-            try:
-                data_json = response.json()
-                
-                # Estrai i valori
-                if 'value' in data_json:
-                    records = data_json['value']
-                elif isinstance(data_json, list):
-                    records = data_json
-                else:
-                    records = [data_json]
-                
-                # Se ci sono record, l'API ha restituito dati
-                if records and len(records) > 0:
-                    api_has_data = True
-                    app.logger.info(f"API ha restituito {len(records)} record per {date_str}")
-            except ValueError as e:
-                # Errore nel parsing JSON
-                app.logger.error(f"Errore nel parsing JSON per {date_str}: {e}")
-                pass
-        
-        # Se l'API non ha restituito dati (vuoto o errore), usa la cache SOLO se:
-        # 1. La data è oltre 7 giorni (per mantenere lo storico)
-        # 2. La cache è disponibile
-        if not api_has_data:
-            if response.status_code != 200:
-                app.logger.error(f"Errore HTTP {response.status_code} durante l'estrazione per {date_str}: {response.text[:500]}")
-            
-            if not is_within_7_days and cached_data:
-                app.logger.info(f"API non ha restituito dati per {date_str} (oltre 7 giorni), uso cache (timestamp: {cache_timestamp})")
-                # Restituisci i dati dalla cache
-                result = cached_data.copy()
-                result['from_cache'] = True
-                result['cache_timestamp'] = cache_timestamp
-                result['api_available'] = False
-                return render_template('risultati.html', data=result)
-            else:
-                # Nessun dato dall'API e nessuna cache disponibile
-                error_data = {
-                    'success': False,
-                    'error': f'Errore HTTP {response.status_code}' if response.status_code != 200 else 'Nessun dato disponibile per questa data',
-                    'date': date_str,
-                    'statistics': {
-                        'totali': {
-                            'totale_pezzi': 0,
-                            'pezzi_checkati': 0,
-                            'pezzi_da_checkare': 0,
-                            'pezzi_accessori': 0,
-                            'pezzi_crossdock': 0,
-                            'totale_giri': 0,
-                            'giri_completati': 0,
-                            'giri_non_completati': 0,
-                            'percentuale_completamento': 0,
-                            'percentuale_completamento_giri': 0
-                        },
-                        'per_giro': [],
-                        'per_cc': []
-                    },
-                    'details': {},
-                    'accessori_details': {},
-                    'crossdock_details': {},
-                    'clienti_per_giro': {},
-                    'product_search': {},
-                    'product_descriptions': {}
-                }
-                return render_template('risultati.html', data=error_data)
-        
-        # Se arriviamo qui, l'API ha restituito dati - continua con l'elaborazione normale
-        app.logger.info(f"Elaborazione {len(records)} record per {date_str}")
-        
-        # Carica anche i dati dalla tabella Loadings per ottenere LoadingName
-        loadings_dict = {}
-        try:
-            loadings_url = f"{odata_base_url.rstrip('/')}/michelinpal/odata/Loadings"
-            app.logger.info(f"Caricamento Loadings da: {loadings_url}")
-            loadings_response = requests.get(loadings_url, headers=headers, auth=auth, timeout=30, allow_redirects=True)
-            app.logger.info(f"Risposta Loadings: status={loadings_response.status_code}")
-            if loadings_response.status_code == 200:
-                loadings_json = loadings_response.json()
-                loadings_records = loadings_json.get('value', []) if 'value' in loadings_json else (loadings_json if isinstance(loadings_json, list) else [])
-                
-                # Crea un dizionario: LoadingId -> LoadingName
-                for loading in loadings_records:
-                    if isinstance(loading, dict):
-                        loading_id = None
-                        loading_name = None
-                        
-                        # Cerca LoadingId
-                        if 'LoadingId' in loading:
-                            loading_id = loading['LoadingId']
-                        elif 'Id' in loading:
-                            loading_id = loading['Id']
-                        elif len(loading) > 0:
-                            first_key = list(loading.keys())[0]
-                            loading_id = loading[first_key]
-                        
-                        # Cerca LoadingName
-                        if 'LoadingName' in loading:
-                            loading_name = loading['LoadingName']
-                        elif 'Name' in loading:
-                            loading_name = loading['Name']
-                        elif len(loading) > 1:
-                            keys_list = list(loading.keys())
-                            if len(keys_list) > 1:
-                                second_key = keys_list[1]
-                                loading_name = loading[second_key]
-                                for key in loading.keys():
-                                    if 'name' in key.lower() and key.lower() not in ['loadingid', 'id']:
-                                        loading_name = loading[key]
-                                        break
-                        
-                        # Costruisci LoadingName se necessario
-                        if loading_id is not None and not loading_name:
-                            keys_list = list(loading.keys())
-                            if len(keys_list) >= 5:
-                                first_val = str(loading[keys_list[0]]) if keys_list[0] in loading and pd.notna(loading[keys_list[0]]) else ''
-                                fifth_val = str(loading[keys_list[4]]) if len(keys_list) > 4 and keys_list[4] in loading and pd.notna(loading[keys_list[4]]) else ''
-                                if first_val or fifth_val:
-                                    loading_name = f"{first_val}{fifth_val}".strip()
-                        
-                        if loading_id is not None and loading_name:
-                            loadings_dict[str(loading_id)] = str(loading_name).strip()
-                
-                app.logger.info(f"Caricati {len(loadings_dict)} loadings per il merge")
-        except Exception as e:
-            app.logger.warning(f"Errore nel caricamento dei Loadings (continuerò senza): {str(e)}")
-        
-        # Aggiungi LoadingName ai record DMX usando LoadingId
-        matched_count = 0
-        unmatched_count = 0
-        for record in records:
-            if isinstance(record, dict):
-                if 'LoadingId' in record and record['LoadingId']:
-                    loading_id = str(record['LoadingId']).strip()
-                    if loading_id in loadings_dict:
-                        record['LoadingName'] = loadings_dict[loading_id]
-                        matched_count += 1
-                    else:
-                        record['LoadingName'] = ''
-                        unmatched_count += 1
-                else:
-                    record['LoadingName'] = ''
-                    unmatched_count += 1
-        
-        app.logger.info(f"Match LoadingName: {matched_count} trovati, {unmatched_count} non trovati")
-        
-        # Analizza i dati (come analyze_excel)
-        analysis_result = analyze_odata_data(records)
-        
-        if not analysis_result.get('success'):
-            app.logger.error(f"Errore nell'analisi dei dati per {date_str}: {analysis_result.get('error', 'Errore sconosciuto')}")
+            # Nessuna cache disponibile - mostra messaggio per estrarre i dati
+            app.logger.warning(f"Nessuna cache disponibile per {date_str}")
             error_data = {
                 'success': False,
-                'error': f'Errore nell\'analisi dei dati: {analysis_result.get("error", "Errore sconosciuto")}',
+                'error': 'Nessun dato disponibile per questa data. Estrai i dati dal calendario prima di visualizzare i dettagli.',
                 'date': date_str,
+                'needs_extraction': True,
                 'statistics': {
                     'totali': {
                         'totale_pezzi': 0,
@@ -2233,20 +1921,6 @@ def risultati(date_str):
                 'product_descriptions': {}
             }
             return render_template('risultati.html', data=error_data)
-        
-        # Aggiungi informazioni aggiuntive
-        analysis_result['date'] = date_str
-        analysis_result['site'] = site
-        analysis_result['extraction_date'] = datetime.now().isoformat()
-        analysis_result['count'] = len(records)
-        analysis_result['from_cache'] = False
-        analysis_result['api_available'] = True
-        
-        # Salva SEMPRE in cache per mantenere lo storico
-        save_extraction_to_cache(date_str, site, analysis_result)
-        
-        # Renderizza la pagina risultati
-        return render_template('risultati.html', data=analysis_result)
         
     except Exception as e:
         import traceback
