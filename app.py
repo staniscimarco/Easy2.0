@@ -2418,6 +2418,69 @@ def risultati(date_str):
         return render_template('risultati.html', data=error_data)
 
 
+@app.route('/api/test_mongodb')
+def test_mongodb():
+    """Endpoint di test per verificare la connessione MongoDB"""
+    try:
+        if not STORAGE_AVAILABLE:
+            return jsonify({
+                'success': False,
+                'message': 'Modulo storage non disponibile',
+                'using_filesystem': True
+            }), 200
+        
+        # Prova a connettersi a MongoDB
+        client, db = storage.get_mongo_client()
+        
+        if client and db:
+            # Test di scrittura
+            test_collection = db['test']
+            test_doc = {
+                'test': True,
+                'timestamp': datetime.now().isoformat(),
+                'message': 'Test connessione MongoDB'
+            }
+            test_collection.insert_one(test_doc)
+            
+            # Test di lettura
+            result = test_collection.find_one({'test': True})
+            
+            # Pulisci il documento di test
+            test_collection.delete_one({'test': True})
+            
+            # Conta le collezioni
+            collections = db.list_collection_names()
+            
+            return jsonify({
+                'success': True,
+                'message': '✅ MongoDB connesso e funzionante!',
+                'database': MONGODB_DB_NAME if hasattr(storage, 'MONGODB_DB_NAME') else 'easyloading',
+                'collections': collections,
+                'test_write_read': 'OK',
+                'using_mongodb': True,
+                'using_filesystem': False
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'message': '⚠️ MongoDB non configurato, uso file system locale',
+                'using_mongodb': False,
+                'using_filesystem': True,
+                'mongodb_uri_set': bool(os.environ.get('MONGODB_URI'))
+            }), 200
+            
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'message': f'❌ Errore connessione MongoDB: {str(e)}',
+            'error': str(e),
+            'traceback': traceback.format_exc(),
+            'using_mongodb': False,
+            'using_filesystem': True
+        }), 500
+
+
 @app.route('/static/sw.js')
 def service_worker():
     """Serve il service worker con il content-type corretto"""
