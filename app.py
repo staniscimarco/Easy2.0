@@ -9,6 +9,14 @@ from werkzeug.utils import secure_filename
 import requests
 import pandas as pd
 
+# Import modulo storage per persistenza dati
+try:
+    import storage
+    STORAGE_AVAILABLE = True
+except ImportError:
+    STORAGE_AVAILABLE = False
+    print("⚠️ Modulo storage non disponibile, uso solo file system locale")
+
 app = Flask(__name__)
 # Usa la secret key da variabile d'ambiente o una di default per sviluppo
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
@@ -122,25 +130,39 @@ def load_anagrafica(filepath, update_mode=False):
 
 
 def save_anagrafica_json():
-    """Salva l'anagrafica in un file JSON"""
+    """Salva l'anagrafica in un file JSON o MongoDB"""
     global anagrafica_data
     if anagrafica_data:
-        with open(ANAGRAFICA_JSON, 'w', encoding='utf-8') as f:
-            json.dump(anagrafica_data, f, ensure_ascii=False, indent=2)
+        if STORAGE_AVAILABLE:
+            storage.save_anagrafica(anagrafica_data, ANAGRAFICA_JSON)
+        else:
+            # Fallback: file system locale
+            try:
+                with open(ANAGRAFICA_JSON, 'w', encoding='utf-8') as f:
+                    json.dump(anagrafica_data, f, ensure_ascii=False, indent=2)
+            except Exception as e:
+                print(f"Errore salvataggio anagrafica: {e}")
 
 
 def load_anagrafica_json():
-    """Carica l'anagrafica dal file JSON se esiste"""
+    """Carica l'anagrafica dal file JSON o MongoDB se esiste"""
     global anagrafica_data
-    if os.path.exists(ANAGRAFICA_JSON):
-        try:
-            with open(ANAGRAFICA_JSON, 'r', encoding='utf-8') as f:
-                anagrafica_data = json.load(f)
+    if STORAGE_AVAILABLE:
+        data = storage.load_anagrafica(ANAGRAFICA_JSON)
+        if data:
+            anagrafica_data = data
             return len(anagrafica_data)
-        except Exception as e:
-            print(f"Errore nel caricamento dell'anagrafica da JSON: {e}")
-            anagrafica_data = None
-            return 0
+    else:
+        # Fallback: file system locale
+        if os.path.exists(ANAGRAFICA_JSON):
+            try:
+                with open(ANAGRAFICA_JSON, 'r', encoding='utf-8') as f:
+                    anagrafica_data = json.load(f)
+                return len(anagrafica_data)
+            except Exception as e:
+                print(f"Errore nel caricamento dell'anagrafica da JSON: {e}")
+                anagrafica_data = None
+    return 0
     return 0
 
 
@@ -446,19 +468,30 @@ def load_odata_config():
 
 
 def save_odata_config(config):
-    """Salva la configurazione OData in JSON"""
-    try:
-        with open(ODATA_CONFIG_JSON, 'w', encoding='utf-8') as f:
-            json.dump(config, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception as e:
-        print(f"Errore nel salvataggio config OData: {e}")
-        return False
+    """Salva la configurazione OData in JSON o MongoDB"""
+    if STORAGE_AVAILABLE:
+        return storage.save_odata_config(config, ODATA_CONFIG_JSON)
+    else:
+        # Fallback: file system locale
+        try:
+            with open(ODATA_CONFIG_JSON, 'w', encoding='utf-8') as f:
+                json.dump(config, f, ensure_ascii=False, indent=2)
+            return True
+        except Exception as e:
+            print(f"Errore nel salvataggio config OData: {e}")
+            return False
 
 
 def get_json_extraction(date_str, site='TST - EDC Torino'):
-    """Recupera un'estrazione dal file JSON più recente per quella data (cache)"""
+    """Recupera un'estrazione dal file JSON più recente per quella data (MongoDB o cache)"""
     uploads_dir = app.config['UPLOAD_FOLDER']
+    
+    if STORAGE_AVAILABLE:
+        data = storage.load_extraction(date_str, site, uploads_dir)
+        if data:
+            return data
+    
+    # Fallback: file system locale
     if not os.path.exists(uploads_dir):
         return None
     
@@ -518,9 +551,17 @@ def is_today_or_yesterday(date_str):
 
 
 def save_json_extraction(date_str, site, analysis_result):
-    """Salva un'estrazione come file JSON nella cartella uploads"""
+    """Salva un'estrazione come file JSON nella cartella uploads o MongoDB"""
+    uploads_dir = app.config['UPLOAD_FOLDER']
+    
+    if STORAGE_AVAILABLE:
+        filename = storage.save_extraction(date_str, site, analysis_result, uploads_dir)
+        if filename:
+            app.logger.info(f"Estrazione {date_str} salvata in storage persistente: {filename}")
+            return filename
+    
+    # Fallback: file system locale
     try:
-        uploads_dir = app.config['UPLOAD_FOLDER']
         app.logger.info(f"Tentativo di salvataggio JSON in: {uploads_dir} (path assoluto: {os.path.abspath(uploads_dir)})")
         
         # Crea la directory se non esiste
@@ -1066,41 +1107,45 @@ def estrai_dati_json():
 
 @app.route('/api/list_extractions')
 def list_extractions():
-    """Lista tutte le estrazioni JSON salvate nella cartella uploads"""
+    """Lista tutte le estrazioni JSON salvate (MongoDB o cartella uploads)"""
     try:
-        extractions = []
         uploads_dir = app.config['UPLOAD_FOLDER']
         
-        if os.path.exists(uploads_dir):
-            # Raggruppa per data (prendi solo il file più recente per ogni data)
-            date_files = {}
-            for filename in os.listdir(uploads_dir):
-                if filename.startswith('estrazione_') and filename.endswith('.json'):
-                    filepath = os.path.join(uploads_dir, filename)
-                    try:
-                        mtime = os.path.getmtime(filepath)
-                        with open(filepath, 'r', encoding='utf-8') as f:
-                            data = json.load(f)
-                            date_str = data.get('date', 'N/A')
-                            if date_str != 'N/A':
-                                # Se abbiamo già un file per questa data, prendi il più recente
-                                if date_str not in date_files or mtime > date_files[date_str][1]:
-                                    date_files[date_str] = (filename, mtime, data)
-                    except Exception as e:
-                        app.logger.warning(f"Errore nel leggere {filename}: {e}")
+        if STORAGE_AVAILABLE:
+            extractions = storage.list_extractions(uploads_dir)
+        else:
+            # Fallback: file system locale
+            extractions = []
+            if os.path.exists(uploads_dir):
+                # Raggruppa per data (prendi solo il file più recente per ogni data)
+                date_files = {}
+                for filename in os.listdir(uploads_dir):
+                    if filename.startswith('estrazione_') and filename.endswith('.json'):
+                        filepath = os.path.join(uploads_dir, filename)
+                        try:
+                            mtime = os.path.getmtime(filepath)
+                            with open(filepath, 'r', encoding='utf-8') as f:
+                                data = json.load(f)
+                                date_str = data.get('date', 'N/A')
+                                if date_str != 'N/A':
+                                    # Se abbiamo già un file per questa data, prendi il più recente
+                                    if date_str not in date_files or mtime > date_files[date_str][1]:
+                                        date_files[date_str] = (filename, mtime, data)
+                        except Exception as e:
+                            app.logger.warning(f"Errore nel leggere {filename}: {e}")
+                
+                # Crea la lista delle estrazioni
+                for date_str, (filename, mtime, data) in date_files.items():
+                    extractions.append({
+                        'filename': filename,
+                        'date': date_str,
+                        'site': data.get('site', 'N/A'),
+                        'count': data.get('count', 0),
+                        'extraction_date': data.get('extraction_date', 'N/A')
+                    })
             
-            # Crea la lista delle estrazioni
-            for date_str, (filename, mtime, data) in date_files.items():
-                extractions.append({
-                    'filename': filename,
-                    'date': date_str,
-                    'site': data.get('site', 'N/A'),
-                    'count': data.get('count', 0),
-                    'extraction_date': data.get('extraction_date', 'N/A')
-                })
-        
-        # Ordina per data di estrazione (più recente prima)
-        extractions.sort(key=lambda x: x.get('extraction_date', ''), reverse=True)
+            # Ordina per data di estrazione (più recente prima)
+            extractions.sort(key=lambda x: x.get('extraction_date', ''), reverse=True)
         
         return jsonify({
             'success': True,
