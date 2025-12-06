@@ -1,0 +1,16 @@
+# File da ignorare durante il deploy su Vercel
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+*.log
+*.cache
+odata_cache.json
+anagrafica.json
+uploads/*
+!.gitkeep
+
