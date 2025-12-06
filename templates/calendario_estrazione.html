@@ -1374,22 +1374,41 @@
                 const response = await fetch('/api/list_extractions');
                 const data = await response.json();
                 
-                if (response.ok && data.extractions && data.extractions.length > 0) {
+                if (response.ok && data.extractions) {
                     // Aggiorna il set delle date estratte per il calendario
-                    extractedDates.clear();
-                    data.extractions.forEach(extraction => {
-                        if (extraction.date && extraction.date !== 'N/A') {
-                            extractedDates.add(extraction.date);
-                        }
-                    });
+                    const newExtractedDates = new Set();
                     
-                    // Aggiorna il calendario per mostrare i giorni estratti
-                    renderCalendar();
+                    if (data.extractions.length > 0) {
+                        data.extractions.forEach(extraction => {
+                            if (extraction.date && extraction.date !== 'N/A') {
+                                // Normalizza il formato della data (YYYY-MM-DD)
+                                const dateStr = String(extraction.date).trim();
+                                if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                                    newExtractedDates.add(dateStr);
+                                    console.log('Aggiunta data estratta:', dateStr);
+                                } else {
+                                    console.warn('Formato data non valido ignorato:', dateStr);
+                                }
+                            }
+                        });
+                    }
+                    
+                    // Aggiorna il set delle date estratte
+                    extractedDates.clear();
+                    newExtractedDates.forEach(date => extractedDates.add(date));
+                    
+                    console.log(`Caricate ${extractedDates.size} date estratte:`, Array.from(extractedDates));
+                    
+                    // NON chiamare renderCalendar() qui - sarà chiamato dal chiamante
+                    return Promise.resolve();
+                } else {
+                    console.warn('Nessuna estrazione trovata o errore nella risposta');
+                    return Promise.resolve();
                 }
-                return Promise.resolve();
             } catch (error) {
                 console.error('Errore nel caricamento estrazioni:', error);
-                return Promise.reject(error);
+                // Non rigettare, così il calendario può essere renderizzato comunque
+                return Promise.resolve();
             }
         }
         
@@ -1439,7 +1458,13 @@
                 dayElement.className = 'calendar-day';
                 dayElement.textContent = day;
                 
+                // DEBUG: log per verificare lo stato
+                if (isExtracted) {
+                    console.log(`Giorno ${day} (${dateStr}) è estratto - aggiungo classe extracted`);
+                }
+                
                 // Ordine importante: extracted ha priorità su selected e today (come nel calendario salvataggio)
+                // SEMPRE aggiungi extracted se la data è nel set, indipendentemente da altre classi
                 if (isExtracted) {
                     dayElement.classList.add('extracted');
                 }
@@ -1497,11 +1522,17 @@
             renderCalendar();
         });
         
-        // Inizializza calendario
-        renderCalendar();
-        
-        // Carica le estrazioni esistenti all'avvio e aggiorna il calendario
-        loadExtractions();
+        // Carica PRIMA le estrazioni, POI renderizza il calendario
+        // Questo assicura che i giorni verdi vengano mostrati immediatamente
+        loadExtractions().then(() => {
+            // Dopo aver caricato le estrazioni, renderizza il calendario
+            renderCalendar();
+            console.log('Calendario inizializzato con estrazioni caricate');
+        }).catch(err => {
+            console.error('Errore nel caricamento iniziale estrazioni:', err);
+            // Renderizza comunque il calendario anche se il caricamento fallisce
+            renderCalendar();
+        });
         
         // Ascolta messaggi dalla finestra risultati per aggiornare il calendario
         window.addEventListener('message', (event) => {
@@ -1530,7 +1561,10 @@
         
         // Polling periodico per aggiornare le estrazioni (ogni 30 secondi)
         setInterval(() => {
-            loadExtractions();
+            loadExtractions().then(() => {
+                // Aggiorna il calendario dopo aver caricato le estrazioni
+                renderCalendar();
+            });
         }, 30000); // 30 secondi
         
         // Aggiungi listener per il pulsante stop
