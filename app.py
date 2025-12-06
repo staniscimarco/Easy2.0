@@ -24,8 +24,7 @@ ANAGRAFICA_JSON = 'anagrafica.json'
 # File JSON per configurazione OData
 ODATA_CONFIG_JSON = 'odata_config.json'
 
-# File JSON per cache estrazioni OData
-ODATA_CACHE_JSON = 'odata_cache.json'
+# Cache rimossa - usiamo solo file JSON nella cartella uploads
 
 # Inizializza i file JSON se non esistono
 def init_json_files():
@@ -59,13 +58,7 @@ def init_json_files():
         except Exception as e:
             app.logger.error(f"Errore nel caricamento {ODATA_CONFIG_JSON}: {e}")
     
-    # Inizializza odata_cache.json se non esiste
-    if not os.path.exists(ODATA_CACHE_JSON):
-        try:
-            with open(ODATA_CACHE_JSON, 'w', encoding='utf-8') as f:
-                json.dump({}, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            app.logger.warning(f"Impossibile creare {ODATA_CACHE_JSON}: {e}")
+    # Cache rimossa - non più necessaria
 
 # Inizializza i file JSON all'avvio
 init_json_files()
@@ -456,71 +449,72 @@ def save_odata_config(config):
         return False
 
 
-def load_odata_cache():
-    """Carica la cache delle estrazioni OData dal file JSON"""
-    try:
-        if os.path.exists(ODATA_CACHE_JSON):
-            with open(ODATA_CACHE_JSON, 'r', encoding='utf-8') as f:
-                cache = json.load(f)
-                return cache
-        return {}
-    except Exception as e:
-        app.logger.error(f"Errore nel caricamento cache OData: {e}")
-        return {}
+def get_json_extraction(date_str, site='TST - EDC Torino'):
+    """Recupera un'estrazione dal file JSON più recente per quella data"""
+    uploads_dir = app.config['UPLOAD_FOLDER']
+    if not os.path.exists(uploads_dir):
+        return None
+    
+    # Cerca file JSON che iniziano con "estrazione_" e contengono la data
+    date_pattern = date_str.replace('-', '')
+    matching_files = []
+    
+    for filename in os.listdir(uploads_dir):
+        if filename.startswith('estrazione_') and filename.endswith('.json'):
+            # Estrai la data dal nome file (formato: estrazione_YYYYMMDD_timestamp.json)
+            if date_pattern in filename:
+                filepath = os.path.join(uploads_dir, filename)
+                try:
+                    mtime = os.path.getmtime(filepath)
+                    matching_files.append((filepath, mtime, filename))
+                except:
+                    continue
+    
+    # Ordina per data di modifica (più recente prima)
+    if matching_files:
+        matching_files.sort(key=lambda x: x[1], reverse=True)
+        # Carica il file più recente
+        filepath, _, filename = matching_files[0]
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                json_data = json.load(f)
+                # Verifica che contenga i dati analizzati
+                if 'data' in json_data or 'statistics' in json_data:
+                    app.logger.info(f"Trovato JSON per {date_str}: {filename}")
+                    return json_data
+        except Exception as e:
+            app.logger.warning(f"Errore nel caricamento JSON {filename}: {e}")
+    
+    return None
 
 
-def save_odata_cache(cache):
-    """Salva la cache delle estrazioni OData in JSON"""
-    try:
-        with open(ODATA_CACHE_JSON, 'w', encoding='utf-8') as f:
-            json.dump(cache, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception as e:
-        app.logger.error(f"Errore nel salvataggio cache OData: {e}")
-        return False
-
-
-def get_cache_key(date_str, site='TST - EDC Torino'):
-    """Genera una chiave univoca per la cache basata su data e sito"""
-    site_code = ''
-    if site and site != '' and site != 'Tous':
-        if '-' in site:
-            site_code = site.split('-')[0].strip()
-        else:
-            site_code = site[:3].strip()
-    return f"{date_str}_{site_code}"
-
-
-def get_cached_extraction(date_str, site='TST - EDC Torino'):
-    """Recupera un'estrazione dalla cache se disponibile"""
-    cache = load_odata_cache()
-    cache_key = get_cache_key(date_str, site)
-    if cache_key in cache:
-        cached_data = cache[cache_key]
-        # Verifica che i dati siano validi
-        if cached_data and 'timestamp' in cached_data:
-            app.logger.info(f"Trovata estrazione in cache per {date_str} (sito: {site})")
-            return cached_data.get('data'), cached_data.get('timestamp')
-    return None, None
-
-
-def save_extraction_to_cache(date_str, site, extraction_data):
-    """Salva un'estrazione nella cache"""
-    cache = load_odata_cache()
-    cache_key = get_cache_key(date_str, site)
-    cache[cache_key] = {
-        'data': extraction_data,
-        'timestamp': datetime.now().isoformat(),
+def save_json_extraction(date_str, site, analysis_result):
+    """Salva un'estrazione come file JSON nella cartella uploads"""
+    uploads_dir = app.config['UPLOAD_FOLDER']
+    os.makedirs(uploads_dir, exist_ok=True)
+    
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    date_pattern = date_str.replace('-', '')
+    filename = f"estrazione_{date_pattern}_{timestamp}.json"
+    filepath = os.path.join(uploads_dir, filename)
+    
+    # Salva i dati analizzati
+    json_data = {
         'date': date_str,
-        'site': site
+        'site': site,
+        'extraction_date': datetime.now().isoformat(),
+        'count': analysis_result.get('count', 0),
+        **analysis_result  # Include tutte le statistiche e dettagli
     }
-    # Mantieni solo le ultime 1000 estrazioni per evitare che il file diventi troppo grande
-    if len(cache) > 1000:
-        # Rimuovi le estrazioni più vecchie
-        sorted_items = sorted(cache.items(), key=lambda x: x[1].get('timestamp', ''), reverse=True)
-        cache = dict(sorted_items[:1000])
-    save_odata_cache(cache)
-    app.logger.info(f"Estrazione salvata in cache per {date_str} (sito: {site})")
+    
+    try:
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(json_data, f, ensure_ascii=False, indent=2)
+        app.logger.info(f"Estrazione salvata in JSON: {filename}")
+        return filename
+    except Exception as e:
+        app.logger.error(f"Errore nel salvataggio JSON {filename}: {e}")
+        return None
 
 
 @app.route('/estrazione_dati')
@@ -1015,49 +1009,38 @@ def estrai_dati_json():
 
 @app.route('/api/list_extractions')
 def list_extractions():
-    """Lista tutte le estrazioni JSON salvate e quelle in cache"""
+    """Lista tutte le estrazioni JSON salvate nella cartella uploads"""
     try:
         extractions = []
         uploads_dir = app.config['UPLOAD_FOLDER']
         
-        # Aggiungi anche le estrazioni dalla cache
-        cache = load_odata_cache()
-        for cache_key, cached_data in cache.items():
-            if cached_data and 'data' in cached_data:
-                # La data può essere in cached_data o in cached_data['data']
-                date_str = cached_data.get('date') or cached_data.get('data', {}).get('date')
-                count = cached_data.get('data', {}).get('count', 0)
-                timestamp = cached_data.get('timestamp', '')
-                extraction_date = cached_data.get('data', {}).get('extraction_date', timestamp)
-                
-                if date_str and date_str != 'N/A':
-                    # Verifica se questa estrazione è già nella lista (evita duplicati)
-                    if not any(e.get('date') == date_str for e in extractions):
-                        extractions.append({
-                            'date': date_str,
-                            'count': count,
-                            'filename': f'cache_{date_str}.json',
-                            'timestamp': timestamp,
-                            'extraction_date': extraction_date,
-                            'from_cache': True
-                        })
-        
         if os.path.exists(uploads_dir):
+            # Raggruppa per data (prendi solo il file più recente per ogni data)
+            date_files = {}
             for filename in os.listdir(uploads_dir):
                 if filename.startswith('estrazione_') and filename.endswith('.json'):
                     filepath = os.path.join(uploads_dir, filename)
                     try:
+                        mtime = os.path.getmtime(filepath)
                         with open(filepath, 'r', encoding='utf-8') as f:
                             data = json.load(f)
-                            extractions.append({
-                                'filename': filename,
-                                'date': data.get('date', 'N/A'),
-                                'site': data.get('site', 'N/A'),
-                                'count': data.get('count', 0),
-                                'extraction_date': data.get('extraction_date', 'N/A')
-                            })
+                            date_str = data.get('date', 'N/A')
+                            if date_str != 'N/A':
+                                # Se abbiamo già un file per questa data, prendi il più recente
+                                if date_str not in date_files or mtime > date_files[date_str][1]:
+                                    date_files[date_str] = (filename, mtime, data)
                     except Exception as e:
-                        print(f"Errore nel leggere {filename}: {e}")
+                        app.logger.warning(f"Errore nel leggere {filename}: {e}")
+            
+            # Crea la lista delle estrazioni
+            for date_str, (filename, mtime, data) in date_files.items():
+                extractions.append({
+                    'filename': filename,
+                    'date': date_str,
+                    'site': data.get('site', 'N/A'),
+                    'count': data.get('count', 0),
+                    'extraction_date': data.get('extraction_date', 'N/A')
+                })
         
         # Ordina per data di estrazione (più recente prima)
         extractions.sort(key=lambda x: x.get('extraction_date', ''), reverse=True)
@@ -1079,25 +1062,7 @@ def estrazioni():
 
 @app.route('/api/download_json/<filename>')
 def download_json(filename):
-    """Endpoint per scaricare il file JSON estratto (da uploads o cache)"""
-    # Se è un file dalla cache, estrai la data e crea il JSON
-    if filename.startswith('cache_'):
-        # Estrai la data dal filename: cache_YYYY-MM-DD.json
-        date_str = filename.replace('cache_', '').replace('.json', '')
-        cached_data, _ = get_cached_extraction(date_str, 'TST - EDC Torino')
-        if cached_data:
-            # Crea un file temporaneo in memoria
-            json_str = json.dumps(cached_data, ensure_ascii=False, indent=2)
-            return send_file(
-                io.BytesIO(json_str.encode('utf-8')),
-                as_attachment=True,
-                download_name=filename,
-                mimetype='application/json'
-            )
-        else:
-            return jsonify({'error': 'File dalla cache non trovato'}), 404
-    
-    # File normale da uploads
+    """Endpoint per scaricare il file JSON estratto dalla cartella uploads"""
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
     if os.path.exists(filepath):
         return send_file(filepath, as_attachment=True, download_name=filename, mimetype='application/json')
@@ -1107,18 +1072,7 @@ def download_json(filename):
 
 @app.route('/api/view_json/<filename>')
 def view_json(filename):
-    """Endpoint per visualizzare il file JSON in formato leggibile (da uploads o cache)"""
-    # Se è un file dalla cache, estrai la data e restituisci i dati
-    if filename.startswith('cache_'):
-        # Estrai la data dal filename: cache_YYYY-MM-DD.json
-        date_str = filename.replace('cache_', '').replace('.json', '')
-        cached_data, _ = get_cached_extraction(date_str, 'TST - EDC Torino')
-        if cached_data:
-            return jsonify(cached_data)
-        else:
-            return jsonify({'error': 'File dalla cache non trovato'}), 404
-    
-    # File normale da uploads
+    """Endpoint per visualizzare il file JSON in formato leggibile dalla cartella uploads"""
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(filename))
     if os.path.exists(filepath):
         try:
@@ -1606,19 +1560,10 @@ def estrai_e_analizza():
         except ValueError:
             return jsonify({'error': 'Formato data non valido. Usa YYYY-MM-DD'}), 400
         
-        # Calcola se la data è entro 7 giorni (per decidere se usare la cache)
-        today = date.today()
-        days_diff = (today - date_start).days
-        is_within_7_days = days_diff <= 7
-        
-        # Controlla la cache SOLO se la data è oltre 7 giorni
-        cached_data = None
-        cache_timestamp = None
-        if not is_within_7_days:
-            cached_data, cache_timestamp = get_cached_extraction(date_str, site)
-            app.logger.info(f"Data {date_str} è oltre 7 giorni (differenza: {days_diff} giorni), cache disponibile: {cached_data is not None}")
-        else:
-            app.logger.info(f"Data {date_str} è entro 7 giorni (differenza: {days_diff} giorni), sempre chiamare API per dati aggiornati")
+        # Controlla se esiste un JSON salvato per questa data (come fallback)
+        json_data = get_json_extraction(date_str, site)
+        if json_data:
+            app.logger.info(f"Trovato JSON salvato per {date_str}")
         
         # Carica configurazione OData
         config = load_odata_config()
@@ -1706,40 +1651,35 @@ def estrai_e_analizza():
                 # Errore nel parsing JSON
                 pass
         
-        # Se l'API non ha restituito dati (vuoto o errore), usa la cache SOLO se:
-        # 1. La data è oltre 7 giorni (per mantenere lo storico)
-        # 2. La cache è disponibile
+        # Se l'API non ha restituito dati, usa JSON salvato se disponibile
         if not api_has_data:
-            if not is_within_7_days and cached_data:
-                app.logger.info(f"API non ha restituito dati per {date_str} (oltre 7 giorni), uso cache (timestamp: {cache_timestamp})")
-                # Restituisci i dati dalla cache
-                result = cached_data.copy()
-                result['from_cache'] = True
-                result['cache_timestamp'] = cache_timestamp
+            if json_data:
+                app.logger.info(f"API non ha restituito dati per {date_str}, uso JSON salvato")
+                result = json_data.copy()
+                result['from_json'] = True
                 result['api_available'] = False
                 return jsonify(result)
             else:
-                # Nessun dato dall'API e nessuna cache disponibile
+                # Nessun dato dall'API e nessun JSON disponibile
                 if response.status_code != 200:
                     error_msg = f"Errore HTTP {response.status_code}"
                     if response.text:
                         error_msg += f": {response.text[:500]}"
-                    app.logger.warning(f"Errore API e nessuna cache disponibile per {date_str}: {error_msg}")
+                    app.logger.warning(f"Errore API e nessun JSON disponibile per {date_str}: {error_msg}")
                     return jsonify({
                         'error': error_msg,
-                        'from_cache': False,
-                        'cache_available': False,
-                        'message': 'Nessun dato disponibile dall\'API e nessuna estrazione precedente in memoria per questa data.'
+                        'from_json': False,
+                        'json_available': False,
+                        'message': 'Nessun dato disponibile dall\'API e nessuna estrazione precedente salvata per questa data.'
                     }), response.status_code
                 else:
-                    # API OK ma nessun record (data oltre 7 giorni)
-                    app.logger.info(f"API restituita vuota per {date_str}, nessuna cache disponibile")
+                    app.logger.info(f"API restituita vuota per {date_str}, nessun JSON disponibile")
                     return jsonify({
                         'error': 'Nessun dato disponibile per questa data',
-                        'from_cache': False,
-                        'cache_available': False,
+                        'from_json': False,
+                        'json_available': False,
                         'count': 0,
-                        'message': 'L\'API non ha restituito dati per questa data (probabilmente oltre i 7 giorni disponibili) e non esiste una estrazione precedente in memoria.'
+                        'message': 'L\'API non ha restituito dati per questa data e non esiste una estrazione precedente salvata.'
                     }), 404
         
         # Se arriviamo qui, l'API ha restituito dati - continua con l'elaborazione normale
@@ -1847,12 +1787,13 @@ def estrai_e_analizza():
         analysis_result['site'] = site
         analysis_result['extraction_date'] = datetime.now().isoformat()
         analysis_result['count'] = len(records)
-        analysis_result['from_cache'] = False
+        analysis_result['from_json'] = False
         analysis_result['api_available'] = True
         
-        # Salva SEMPRE in cache per mantenere lo storico (anche per date entro 7 giorni)
-        # La cache verrà usata solo per date oltre 7 giorni quando l'API non restituisce dati
-        save_extraction_to_cache(date_str, site, analysis_result)
+        # Salva SEMPRE in JSON per mantenere lo storico
+        saved_filename = save_json_extraction(date_str, site, analysis_result)
+        if saved_filename:
+            analysis_result['saved_filename'] = saved_filename
         
         return jsonify(analysis_result)
         
@@ -1880,8 +1821,8 @@ def risultati(date_str):
             flash('Formato data non valido', 'error')
             return redirect(url_for('calendario_estrazione'))
         
-        # Controlla la cache come fallback
-        cached_data, cache_timestamp = get_cached_extraction(date_str, site)
+        # Controlla se esiste un JSON salvato per questa data (come fallback)
+        json_data = get_json_extraction(date_str, site)
         
         # Carica configurazione OData
         config = load_odata_config()
@@ -1963,13 +1904,12 @@ def risultati(date_str):
                     records = [data_json]
                 app.logger.info(f"API ha restituito {len(records)} record per {date_str}")
         except requests.exceptions.Timeout:
-            app.logger.warning(f"Timeout OData per {date_str}, uso cache se disponibile")
-            if cached_data:
-                result = cached_data.copy()
-                result['from_cache'] = True
-                result['cache_timestamp'] = cache_timestamp
+            app.logger.warning(f"Timeout OData per {date_str}, uso JSON salvato se disponibile")
+            if json_data:
+                result = json_data.copy()
+                result['from_json'] = True
                 result['api_available'] = False
-                result['error'] = 'Timeout nella richiesta OData, dati dalla cache'
+                result['error'] = 'Timeout nella richiesta OData, dati dal JSON salvato'
                 return render_template('risultati.html', data=result)
             else:
                 error_data = {
@@ -2002,12 +1942,11 @@ def risultati(date_str):
                 return render_template('risultati.html', data=error_data)
         except requests.exceptions.RequestException as e:
             app.logger.error(f"Errore OData per {date_str}: {e}")
-            if cached_data:
-                result = cached_data.copy()
-                result['from_cache'] = True
-                result['cache_timestamp'] = cache_timestamp
+            if json_data:
+                result = json_data.copy()
+                result['from_json'] = True
                 result['api_available'] = False
-                result['error'] = f'Errore OData: {str(e)}, dati dalla cache'
+                result['error'] = f'Errore OData: {str(e)}, dati dal JSON salvato'
                 return render_template('risultati.html', data=result)
             else:
                 error_data = {
@@ -2039,15 +1978,14 @@ def risultati(date_str):
                 }
                 return render_template('risultati.html', data=error_data)
         
-        # Se non ci sono record, usa cache se disponibile
+        # Se non ci sono record, usa JSON salvato se disponibile
         if not records or len(records) == 0:
             app.logger.warning(f"Nessun record dall'API per {date_str}")
-            if cached_data:
-                result = cached_data.copy()
-                result['from_cache'] = True
-                result['cache_timestamp'] = cache_timestamp
+            if json_data:
+                result = json_data.copy()
+                result['from_json'] = True
                 result['api_available'] = False
-                result['error'] = 'Nessun dato dall\'API per questa data, dati dalla cache'
+                result['error'] = 'Nessun dato dall\'API per questa data, dati dal JSON salvato'
                 return render_template('risultati.html', data=result)
             else:
                 error_data = {
@@ -2129,12 +2067,11 @@ def risultati(date_str):
         
         if not analysis_result.get('success'):
             app.logger.error(f"Errore nell'analisi per {date_str}: {analysis_result.get('error')}")
-            if cached_data:
-                result = cached_data.copy()
-                result['from_cache'] = True
-                result['cache_timestamp'] = cache_timestamp
+            if json_data:
+                result = json_data.copy()
+                result['from_json'] = True
                 result['api_available'] = False
-                result['error'] = f"Errore nell'analisi, dati dalla cache"
+                result['error'] = f"Errore nell'analisi, dati dal JSON salvato"
                 return render_template('risultati.html', data=result)
             else:
                 error_data = {
@@ -2166,16 +2103,18 @@ def risultati(date_str):
                 }
                 return render_template('risultati.html', data=error_data)
         
-        # Aggiungi informazioni e salva in cache
+        # Aggiungi informazioni e salva SEMPRE in JSON
         analysis_result['date'] = date_str
         analysis_result['site'] = site
         analysis_result['extraction_date'] = datetime.now().isoformat()
         analysis_result['count'] = len(records)
-        analysis_result['from_cache'] = False
+        analysis_result['from_json'] = False
         analysis_result['api_available'] = True
         
-        # Salva SEMPRE in cache per mantenere lo storico
-        save_extraction_to_cache(date_str, site, analysis_result)
+        # Salva SEMPRE in JSON per mantenere lo storico
+        saved_filename = save_json_extraction(date_str, site, analysis_result)
+        if saved_filename:
+            analysis_result['saved_filename'] = saved_filename
         
         return render_template('risultati.html', data=analysis_result)
         
