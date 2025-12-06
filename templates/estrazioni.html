@@ -381,7 +381,8 @@
             
             // Costruisci i pulsanti
             const filename = extraction.filename || '';
-            const detailsUrl = `/risultati/${dateStr}`;
+            // Aggiungi parametro from_db=true per caricare da MongoDB (più veloce)
+            const detailsUrl = `/risultati/${dateStr}?from_db=true`;
             
             detailActions.innerHTML = `
                 <a href="/api/download_json/${filename}" class="btn-action btn-download">

@@ -1950,12 +1950,63 @@ def estrai_e_analizza():
 def risultati(date_str):
     """Pagina a tutto schermo per visualizzare i risultati analizzati per una data specifica
     Logica:
-    - Oggi/Ieri: sempre chiamata API diretta
+    - Se from_db=true: carica SOLO da MongoDB (veloce, per pagina Salvataggio)
+    - Oggi/Ieri: sempre chiamata API diretta (dal calendario)
     - 2-7 giorni fa: chiamata API con fallback a JSON
     - Oltre 7 giorni: solo JSON (cache)
     """
     try:
-        app.logger.info(f"=== INIZIO estrazione risultati per data: {date_str} ===")
+        # Controlla se deve caricare da MongoDB (parametro from_db)
+        from_db = request.args.get('from_db', 'false').lower() == 'true'
+        
+        if from_db:
+            # Carica SOLO da MongoDB (più veloce, per pagina Salvataggio)
+            app.logger.info(f"=== Caricamento da MongoDB per data: {date_str} ===")
+            site = 'TST - EDC Torino'
+            
+            if STORAGE_AVAILABLE:
+                json_data = storage.load_extraction(date_str, site, app.config['UPLOAD_FOLDER'])
+                if json_data:
+                    app.logger.info(f"✅ Dati caricati da MongoDB per {date_str}")
+                    result = json_data.copy()
+                    result['from_json'] = True
+                    result['api_available'] = False
+                    result['from_mongodb'] = True
+                    result['message'] = 'Dati caricati da MongoDB (veloce)'
+                    return render_template('risultati.html', data=result)
+            
+            # Fallback: prova file system locale
+            json_data = get_json_extraction(date_str, site)
+            if json_data:
+                app.logger.info(f"✅ Dati caricati da file system locale per {date_str}")
+                result = json_data.copy()
+                result['from_json'] = True
+                result['api_available'] = False
+                result['from_mongodb'] = False
+                result['message'] = 'Dati caricati da file system locale'
+                return render_template('risultati.html', data=result)
+            
+            # Nessun dato trovato
+            error_data = {
+                'success': False,
+                'error': f'Nessun dato salvato trovato per la data {date_str}. Estrai i dati dal calendario prima di visualizzare.',
+                'date': date_str,
+                'statistics': {
+                    'totali': {
+                        'totale_pezzi': 0, 'pezzi_checkati': 0, 'pezzi_da_checkare': 0,
+                        'pezzi_accessori': 0, 'pezzi_crossdock': 0, 'totale_giri': 0,
+                        'giri_completati': 0, 'giri_non_completati': 0,
+                        'percentuale_completamento': 0, 'percentuale_completamento_giri': 0
+                    },
+                    'per_giro': [], 'per_cc': []
+                },
+                'details': {}, 'accessori_details': {}, 'crossdock_details': {},
+                'clienti_per_giro': {}, 'product_search': {}, 'product_descriptions': {}
+            }
+            return render_template('risultati.html', data=error_data)
+        
+        # Comportamento normale: chiamata API diretta (dal calendario)
+        app.logger.info(f"=== INIZIO estrazione risultati per data: {date_str} (chiamata API diretta) ===")
         
         # Estrai e analizza i dati per la data specificata
         site = 'TST - EDC Torino'
