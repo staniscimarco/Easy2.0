@@ -18,6 +18,39 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 # Crea la cartella uploads se non esiste
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+# Inizializza i file JSON se non esistono
+def init_json_files():
+    """Inizializza i file JSON se non esistono"""
+    # Inizializza odata_config.json se non esiste
+    if not os.path.exists(ODATA_CONFIG_JSON):
+        default_config = {
+            'odata_url': 'https://voiapp.fr',
+            'odata_endpoint': 'michelinpal/odata/DMX',
+            'requires_auth': True,
+            'auth_type': 'basic',
+            'auth_username': 'API',
+            'auth_password': 'IPA',
+            'auth_token': '',
+            'date_field': 'LaunchDate',
+            'site_field': 'SiteName'
+        }
+        try:
+            with open(ODATA_CONFIG_JSON, 'w', encoding='utf-8') as f:
+                json.dump(default_config, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            app.logger.warning(f"Impossibile creare {ODATA_CONFIG_JSON}: {e}")
+    
+    # Inizializza odata_cache.json se non esiste
+    if not os.path.exists(ODATA_CACHE_JSON):
+        try:
+            with open(ODATA_CACHE_JSON, 'w', encoding='utf-8') as f:
+                json.dump({}, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            app.logger.warning(f"Impossibile creare {ODATA_CACHE_JSON}: {e}")
+
+# Inizializza i file JSON all'avvio
+init_json_files()
+
 # File JSON per salvare l'anagrafica
 ANAGRAFICA_JSON = 'anagrafica.json'
 
