@@ -1853,6 +1853,8 @@ def estrai_e_analizza():
 def risultati(date_str):
     """Pagina a tutto schermo per visualizzare i risultati analizzati per una data specifica"""
     try:
+        app.logger.info(f"Inizio estrazione risultati per data: {date_str}")
+        
         # Estrai e analizza i dati per la data specificata
         site = 'TST - EDC Torino'
         date_field = 'LaunchDate'
@@ -1863,6 +1865,20 @@ def risultati(date_str):
         except ValueError:
             flash('Formato data non valido', 'error')
             return redirect(url_for('calendario_estrazione'))
+        
+        # Calcola se la data è entro 7 giorni (per decidere se usare la cache)
+        today = date.today()
+        days_diff = (today - date_start).days
+        is_within_7_days = days_diff <= 7
+        
+        # Controlla la cache SOLO se la data è oltre 7 giorni
+        cached_data = None
+        cache_timestamp = None
+        if not is_within_7_days:
+            cached_data, cache_timestamp = get_cached_extraction(date_str, site)
+            app.logger.info(f"Data {date_str} è oltre 7 giorni (differenza: {days_diff} giorni), cache disponibile: {cached_data is not None}")
+        else:
+            app.logger.info(f"Data {date_str} è entro 7 giorni (differenza: {days_diff} giorni), sempre chiamare API per dati aggiornati")
         
         # Carica configurazione OData
         config = load_odata_config()
@@ -1907,6 +1923,8 @@ def risultati(date_str):
         select_encoded = quote(detail_col)
         full_url = f"{odata_url}?$filter={filter_encoded}&$orderby={date_field}&$select={select_encoded}"
         
+        app.logger.info(f"URL OData: {full_url}")
+        
         # Headers per OData
         headers = {
             'Accept': 'application/json',
@@ -1923,201 +1941,33 @@ def risultati(date_str):
             if auth_type == 'basic' and auth_username and auth_password:
                 from requests.auth import HTTPBasicAuth
                 auth = HTTPBasicAuth(auth_username, auth_password)
+                app.logger.info(f"Autenticazione configurata: username={auth_username}")
+            else:
+                app.logger.warning("Autenticazione richiesta ma credenziali non configurate")
         
         # Fai la richiesta DMX
+        api_available = False
+        records = []
         try:
-            response = requests.get(full_url, headers=headers, auth=auth, timeout=120, allow_redirects=True)
-        except requests.exceptions.RequestException as e:
-            app.logger.error(f"Errore di connessione OData per {date_str}: {e}")
-            error_data = {
-                'success': False,
-                'error': f'Errore di connessione all\'API OData: {str(e)}',
-                'date': date_str,
-                'statistics': {
-                    'totali': {
-                        'totale_pezzi': 0,
-                        'pezzi_checkati': 0,
-                        'pezzi_da_checkare': 0,
-                        'pezzi_accessori': 0,
-                        'pezzi_crossdock': 0,
-                        'totale_giri': 0,
-                        'giri_completati': 0,
-                        'giri_non_completati': 0,
-                        'percentuale_completamento': 0,
-                        'percentuale_completamento_giri': 0
-                    },
-                    'per_giro': [],
-                    'per_cc': []
-                },
-                'details': {},
-                'accessori_details': {},
-                'crossdock_details': {},
-                'clienti_per_giro': {},
-                'product_search': {},
-                'product_descriptions': {}
-            }
-            return render_template('risultati.html', data=error_data)
-        
-        if response.status_code != 200:
-            app.logger.error(f"Errore HTTP {response.status_code} durante l'estrazione per {date_str}: {response.text[:500]}")
-            error_data = {
-                'success': False,
-                'error': f'Errore HTTP {response.status_code} durante l\'estrazione dei dati: {response.text[:200]}',
-                'date': date_str,
-                'statistics': {
-                    'totali': {
-                        'totale_pezzi': 0,
-                        'pezzi_checkati': 0,
-                        'pezzi_da_checkare': 0,
-                        'pezzi_accessori': 0,
-                        'pezzi_crossdock': 0,
-                        'totale_giri': 0,
-                        'giri_completati': 0,
-                        'giri_non_completati': 0,
-                        'percentuale_completamento': 0,
-                        'percentuale_completamento_giri': 0
-                    },
-                    'per_giro': [],
-                    'per_cc': []
-                },
-                'details': {},
-                'accessori_details': {},
-                'crossdock_details': {},
-                'clienti_per_giro': {},
-                'product_search': {},
-                'product_descriptions': {}
-            }
-            return render_template('risultati.html', data=error_data)
-        
-        # Parsa JSON
-        try:
-            data_json = response.json()
-            
-            # Estrai i valori
-            if 'value' in data_json:
-                records = data_json['value']
-            elif isinstance(data_json, list):
-                records = data_json
+            app.logger.info(f"Inizio richiesta OData per {date_str}")
+            response = requests.get(full_url, headers=headers, auth=auth, timeout=60, allow_redirects=True)
+            app.logger.info(f"Risposta OData ricevuta: status={response.status_code}")
+            api_available = True
+        except requests.exceptions.Timeout as e:
+            app.logger.error(f"Timeout nella richiesta OData per {date_str}: {e}")
+            # Se c'è cache disponibile, usala
+            if cached_data:
+                app.logger.info(f"Timeout OData per {date_str}, uso cache disponibile")
+                result = cached_data.copy()
+                result['from_cache'] = True
+                result['cache_timestamp'] = cache_timestamp
+                result['api_available'] = False
+                result['error'] = 'Timeout nella richiesta OData, dati dalla cache'
+                return render_template('risultati.html', data=result)
             else:
-                records = [data_json]
-            
-            # Carica anche i dati dalla tabella Loadings per ottenere LoadingName
-            loadings_dict = {}
-            try:
-                loadings_url = f"{odata_base_url.rstrip('/')}/michelinpal/odata/Loadings"
-                loadings_response = requests.get(loadings_url, headers=headers, auth=auth, timeout=120, allow_redirects=True)
-                if loadings_response.status_code == 200:
-                    loadings_json = loadings_response.json()
-                    loadings_records = loadings_json.get('value', []) if 'value' in loadings_json else (loadings_json if isinstance(loadings_json, list) else [])
-                    
-                    # Crea un dizionario: LoadingId -> LoadingName
-                    # Dalla formula VBA: VLOOKUP(V2;'Voiteq Data Loadings'!A:I;2;FALSE)
-                    # Quindi colonna A è LoadingId, colonna B è LoadingName
-                    # Ma dalla riga 309 del VBA, LoadingName viene calcolato come concatenazione di A2 ed E2
-                    for loading in loadings_records:
-                        if isinstance(loading, dict):
-                            loading_id = None
-                            loading_name = None
-                            
-                            # Cerca LoadingId - potrebbe essere in vari campi
-                            if 'LoadingId' in loading:
-                                loading_id = loading['LoadingId']
-                            elif 'Id' in loading:
-                                loading_id = loading['Id']
-                            elif len(loading) > 0:
-                                # Prendi il primo campo come LoadingId (colonna A)
-                                first_key = list(loading.keys())[0]
-                                loading_id = loading[first_key]
-                            
-                            # Cerca LoadingName - prima cerca un campo esplicito
-                            if 'LoadingName' in loading:
-                                loading_name = loading['LoadingName']
-                            elif 'Name' in loading:
-                                loading_name = loading['Name']
-                            elif len(loading) > 1:
-                                # Prendi il secondo campo (colonna B) come LoadingName
-                                keys_list = list(loading.keys())
-                                if len(keys_list) > 1:
-                                    second_key = keys_list[1]
-                                    loading_name = loading[second_key]
-                                    
-                                    # Cerca anche un campo che contiene "Name" nel nome
-                                    for key in loading.keys():
-                                        if 'name' in key.lower() and key.lower() not in ['loadingid', 'id']:
-                                            loading_name = loading[key]
-                                            break
-                            
-                            # Se non abbiamo LoadingName ma abbiamo LoadingId e altri campi,
-                            # prova a costruirlo come nel VBA (concatenazione di A ed E)
-                            if loading_id is not None and not loading_name:
-                                keys_list = list(loading.keys())
-                                if len(keys_list) >= 5:
-                                    # Prova a concatenare il primo e il quinto campo (A ed E)
-                                    first_val = str(loading[keys_list[0]]) if keys_list[0] in loading and pd.notna(loading[keys_list[0]]) else ''
-                                    fifth_val = str(loading[keys_list[4]]) if len(keys_list) > 4 and keys_list[4] in loading and pd.notna(loading[keys_list[4]]) else ''
-                                    if first_val or fifth_val:
-                                        loading_name = f"{first_val}{fifth_val}".strip()
-                            
-                            # Se ancora non abbiamo LoadingName, prova tutti i campi che potrebbero contenere un nome
-                            if loading_id is not None and not loading_name:
-                                for key, value in loading.items():
-                                    if value and pd.notna(value):
-                                        val_str = str(value).strip()
-                                        # Se il valore contiene lettere e non è solo numeri, potrebbe essere un nome
-                                        if val_str and not val_str.isdigit() and any(c.isalpha() for c in val_str):
-                                            # Evita campi che sono chiaramente ID o date
-                                            if key.lower() not in ['id', 'loadingid', 'date', 'loadingdate', 'chatstartdat', 'chaenddate']:
-                                                loading_name = val_str
-                                                break
-                            
-                            if loading_id is not None and loading_name:
-                                loadings_dict[str(loading_id)] = str(loading_name).strip()
-                                # DEBUG: Stampa alcuni esempi
-                                if len(loadings_dict) <= 5:
-                                    app.logger.info(f"LoadingId {loading_id} -> LoadingName: {loading_name}")
-                
-                app.logger.info(f"Caricati {len(loadings_dict)} loadings per il merge")
-                # DEBUG: Stampa alcuni esempi di loadings_dict
-                if len(loadings_dict) > 0:
-                    sample_items = list(loadings_dict.items())[:3]
-                    app.logger.info(f"Esempi di loadings_dict: {sample_items}")
-                # DEBUG: Stampa alcuni esempi di loadings_dict
-                if len(loadings_dict) > 0:
-                    sample_items = list(loadings_dict.items())[:3]
-                    app.logger.info(f"Esempi di loadings_dict: {sample_items}")
-            except Exception as e:
-                app.logger.warning(f"Errore nel caricamento dei Loadings (continuerò senza): {str(e)}")
-            
-            # Aggiungi LoadingName ai record DMX usando LoadingId
-            matched_count = 0
-            unmatched_count = 0
-            for record in records:
-                if isinstance(record, dict):
-                    if 'LoadingId' in record and record['LoadingId']:
-                        loading_id = str(record['LoadingId']).strip()
-                        if loading_id in loadings_dict:
-                            record['LoadingName'] = loadings_dict[loading_id]
-                            matched_count += 1
-                        else:
-                            record['LoadingName'] = ''
-                            unmatched_count += 1
-                            # DEBUG: Stampa alcuni LoadingId non trovati
-                            if unmatched_count <= 5:
-                                app.logger.warning(f"LoadingId non trovato in loadings_dict: {loading_id}")
-                    else:
-                        record['LoadingName'] = ''
-                        unmatched_count += 1
-            
-            app.logger.info(f"Match LoadingName: {matched_count} trovati, {unmatched_count} non trovati")
-            
-            # Analizza i dati (come analyze_excel)
-            analysis_result = analyze_odata_data(records)
-            
-            if not analysis_result.get('success'):
-                app.logger.error(f"Errore nell'analisi dei dati per {date_str}: {analysis_result.get('error', 'Errore sconosciuto')}")
                 error_data = {
                     'success': False,
-                    'error': f'Errore nell\'analisi dei dati: {analysis_result.get("error", "Errore sconosciuto")}',
+                    'error': f'Timeout nella richiesta OData: {str(e)}',
                     'date': date_str,
                     'statistics': {
                         'totali': {
@@ -2143,18 +1993,240 @@ def risultati(date_str):
                     'product_descriptions': {}
                 }
                 return render_template('risultati.html', data=error_data)
+        except requests.exceptions.RequestException as e:
+            app.logger.error(f"Errore di connessione OData per {date_str}: {e}")
+            # Se c'è cache disponibile, usala
+            if cached_data:
+                app.logger.info(f"Errore OData per {date_str}, uso cache disponibile")
+                result = cached_data.copy()
+                result['from_cache'] = True
+                result['cache_timestamp'] = cache_timestamp
+                result['api_available'] = False
+                result['error'] = f'Errore di connessione OData: {str(e)}, dati dalla cache'
+                return render_template('risultati.html', data=result)
+            else:
+                error_data = {
+                    'success': False,
+                    'error': f'Errore di connessione all\'API OData: {str(e)}',
+                    'date': date_str,
+                    'statistics': {
+                        'totali': {
+                            'totale_pezzi': 0,
+                            'pezzi_checkati': 0,
+                            'pezzi_da_checkare': 0,
+                            'pezzi_accessori': 0,
+                            'pezzi_crossdock': 0,
+                            'totale_giri': 0,
+                            'giri_completati': 0,
+                            'giri_non_completati': 0,
+                            'percentuale_completamento': 0,
+                            'percentuale_completamento_giri': 0
+                        },
+                        'per_giro': [],
+                        'per_cc': []
+                    },
+                    'details': {},
+                    'accessori_details': {},
+                    'crossdock_details': {},
+                    'clienti_per_giro': {},
+                    'product_search': {},
+                    'product_descriptions': {}
+                }
+                return render_template('risultati.html', data=error_data)
+        
+        api_has_data = False
+        if response.status_code == 200:
+            # Parsa JSON solo se la risposta è OK
+            try:
+                data_json = response.json()
+                
+                # Estrai i valori
+                if 'value' in data_json:
+                    records = data_json['value']
+                elif isinstance(data_json, list):
+                    records = data_json
+                else:
+                    records = [data_json]
+                
+                # Se ci sono record, l'API ha restituito dati
+                if records and len(records) > 0:
+                    api_has_data = True
+                    app.logger.info(f"API ha restituito {len(records)} record per {date_str}")
+            except ValueError as e:
+                # Errore nel parsing JSON
+                app.logger.error(f"Errore nel parsing JSON per {date_str}: {e}")
+                pass
+        
+        # Se l'API non ha restituito dati (vuoto o errore), usa la cache SOLO se:
+        # 1. La data è oltre 7 giorni (per mantenere lo storico)
+        # 2. La cache è disponibile
+        if not api_has_data:
+            if response.status_code != 200:
+                app.logger.error(f"Errore HTTP {response.status_code} durante l'estrazione per {date_str}: {response.text[:500]}")
             
-            # Aggiungi informazioni aggiuntive
-            analysis_result['date'] = date_str
-            analysis_result['site'] = site
-            analysis_result['extraction_date'] = datetime.now().isoformat()
-            analysis_result['count'] = len(records)
-            
-            # Renderizza la pagina risultati
-            return render_template('risultati.html', data=analysis_result)
-            
-        except ValueError as e:
-            app.logger.error(f"Errore nel parsing della risposta per {date_str}: {e}")
+            if not is_within_7_days and cached_data:
+                app.logger.info(f"API non ha restituito dati per {date_str} (oltre 7 giorni), uso cache (timestamp: {cache_timestamp})")
+                # Restituisci i dati dalla cache
+                result = cached_data.copy()
+                result['from_cache'] = True
+                result['cache_timestamp'] = cache_timestamp
+                result['api_available'] = False
+                return render_template('risultati.html', data=result)
+            else:
+                # Nessun dato dall'API e nessuna cache disponibile
+                error_data = {
+                    'success': False,
+                    'error': f'Errore HTTP {response.status_code}' if response.status_code != 200 else 'Nessun dato disponibile per questa data',
+                    'date': date_str,
+                    'statistics': {
+                        'totali': {
+                            'totale_pezzi': 0,
+                            'pezzi_checkati': 0,
+                            'pezzi_da_checkare': 0,
+                            'pezzi_accessori': 0,
+                            'pezzi_crossdock': 0,
+                            'totale_giri': 0,
+                            'giri_completati': 0,
+                            'giri_non_completati': 0,
+                            'percentuale_completamento': 0,
+                            'percentuale_completamento_giri': 0
+                        },
+                        'per_giro': [],
+                        'per_cc': []
+                    },
+                    'details': {},
+                    'accessori_details': {},
+                    'crossdock_details': {},
+                    'clienti_per_giro': {},
+                    'product_search': {},
+                    'product_descriptions': {}
+                }
+                return render_template('risultati.html', data=error_data)
+        
+        # Se arriviamo qui, l'API ha restituito dati - continua con l'elaborazione normale
+        app.logger.info(f"Elaborazione {len(records)} record per {date_str}")
+        
+        # Carica anche i dati dalla tabella Loadings per ottenere LoadingName
+        loadings_dict = {}
+        try:
+            loadings_url = f"{odata_base_url.rstrip('/')}/michelinpal/odata/Loadings"
+            loadings_response = requests.get(loadings_url, headers=headers, auth=auth, timeout=60, allow_redirects=True)
+            if loadings_response.status_code == 200:
+                loadings_json = loadings_response.json()
+                loadings_records = loadings_json.get('value', []) if 'value' in loadings_json else (loadings_json if isinstance(loadings_json, list) else [])
+                
+                # Crea un dizionario: LoadingId -> LoadingName
+                for loading in loadings_records:
+                    if isinstance(loading, dict):
+                        loading_id = None
+                        loading_name = None
+                        
+                        # Cerca LoadingId
+                        if 'LoadingId' in loading:
+                            loading_id = loading['LoadingId']
+                        elif 'Id' in loading:
+                            loading_id = loading['Id']
+                        elif len(loading) > 0:
+                            first_key = list(loading.keys())[0]
+                            loading_id = loading[first_key]
+                        
+                        # Cerca LoadingName
+                        if 'LoadingName' in loading:
+                            loading_name = loading['LoadingName']
+                        elif 'Name' in loading:
+                            loading_name = loading['Name']
+                        elif len(loading) > 1:
+                            keys_list = list(loading.keys())
+                            if len(keys_list) > 1:
+                                second_key = keys_list[1]
+                                loading_name = loading[second_key]
+                                for key in loading.keys():
+                                    if 'name' in key.lower() and key.lower() not in ['loadingid', 'id']:
+                                        loading_name = loading[key]
+                                        break
+                        
+                        # Costruisci LoadingName se necessario
+                        if loading_id is not None and not loading_name:
+                            keys_list = list(loading.keys())
+                            if len(keys_list) >= 5:
+                                first_val = str(loading[keys_list[0]]) if keys_list[0] in loading and pd.notna(loading[keys_list[0]]) else ''
+                                fifth_val = str(loading[keys_list[4]]) if len(keys_list) > 4 and keys_list[4] in loading and pd.notna(loading[keys_list[4]]) else ''
+                                if first_val or fifth_val:
+                                    loading_name = f"{first_val}{fifth_val}".strip()
+                        
+                        if loading_id is not None and loading_name:
+                            loadings_dict[str(loading_id)] = str(loading_name).strip()
+                
+                app.logger.info(f"Caricati {len(loadings_dict)} loadings per il merge")
+        except Exception as e:
+            app.logger.warning(f"Errore nel caricamento dei Loadings (continuerò senza): {str(e)}")
+        
+        # Aggiungi LoadingName ai record DMX usando LoadingId
+        matched_count = 0
+        unmatched_count = 0
+        for record in records:
+            if isinstance(record, dict):
+                if 'LoadingId' in record and record['LoadingId']:
+                    loading_id = str(record['LoadingId']).strip()
+                    if loading_id in loadings_dict:
+                        record['LoadingName'] = loadings_dict[loading_id]
+                        matched_count += 1
+                    else:
+                        record['LoadingName'] = ''
+                        unmatched_count += 1
+                else:
+                    record['LoadingName'] = ''
+                    unmatched_count += 1
+        
+        app.logger.info(f"Match LoadingName: {matched_count} trovati, {unmatched_count} non trovati")
+        
+        # Analizza i dati (come analyze_excel)
+        analysis_result = analyze_odata_data(records)
+        
+        if not analysis_result.get('success'):
+            app.logger.error(f"Errore nell'analisi dei dati per {date_str}: {analysis_result.get('error', 'Errore sconosciuto')}")
+            error_data = {
+                'success': False,
+                'error': f'Errore nell\'analisi dei dati: {analysis_result.get("error", "Errore sconosciuto")}',
+                'date': date_str,
+                'statistics': {
+                    'totali': {
+                        'totale_pezzi': 0,
+                        'pezzi_checkati': 0,
+                        'pezzi_da_checkare': 0,
+                        'pezzi_accessori': 0,
+                        'pezzi_crossdock': 0,
+                        'totale_giri': 0,
+                        'giri_completati': 0,
+                        'giri_non_completati': 0,
+                        'percentuale_completamento': 0,
+                        'percentuale_completamento_giri': 0
+                    },
+                    'per_giro': [],
+                    'per_cc': []
+                },
+                'details': {},
+                'accessori_details': {},
+                'crossdock_details': {},
+                'clienti_per_giro': {},
+                'product_search': {},
+                'product_descriptions': {}
+            }
+            return render_template('risultati.html', data=error_data)
+        
+        # Aggiungi informazioni aggiuntive
+        analysis_result['date'] = date_str
+        analysis_result['site'] = site
+        analysis_result['extraction_date'] = datetime.now().isoformat()
+        analysis_result['count'] = len(records)
+        analysis_result['from_cache'] = False
+        analysis_result['api_available'] = True
+        
+        # Salva SEMPRE in cache per mantenere lo storico
+        save_extraction_to_cache(date_str, site, analysis_result)
+        
+        # Renderizza la pagina risultati
+        return render_template('risultati.html', data=analysis_result)
             error_data = {
                 'success': False,
                 'error': f'Errore nel parsing della risposta: {str(e)}',
