@@ -26,16 +26,6 @@
                 </div>
                 <div class="card-body">
                     {% if anagrafica_loaded %}
-                        {% if anagrafica_filename %}
-                            <div class="alert alert-success mb-3">
-                                <i class="bi bi-file-earmark-check me-2"></i>
-                                <strong>File caricato:</strong> {{ anagrafica_filename }}
-                                {% if 'json' in anagrafica_filename.lower() %}
-                                    <br><small class="text-muted">(Caricata automaticamente dal file JSON salvato)</small>
-                                {% endif %}
-                            </div>
-                        {% endif %}
-                        
                         <a href="/view_anagrafica" class="btn btn-primary w-100">
                             <i class="bi bi-eye"></i>
                             Visualizza e Gestisci Anagrafica
