@@ -712,7 +712,7 @@ def estrai_dati():
             if auth:
                 print("Autenticazione: Basic Auth abilitata")
             
-            response = requests.get(full_url, headers=headers, auth=auth, timeout=120, allow_redirects=True)
+            response = requests.get(full_url, headers=headers, auth=auth, timeout=30, allow_redirects=True)
             
             print(f"Status code: {response.status_code}")
             print(f"Content-Type: {response.headers.get('Content-Type', 'N/A')}")
@@ -1736,7 +1736,9 @@ def estrai_e_analizza():
         loadings_dict = {}
         try:
                 loadings_url = f"{odata_base_url.rstrip('/')}/michelinpal/odata/Loadings"
-                loadings_response = requests.get(loadings_url, headers=headers, auth=auth, timeout=120, allow_redirects=True)
+                app.logger.info(f"Caricamento Loadings da: {loadings_url}")
+                loadings_response = requests.get(loadings_url, headers=headers, auth=auth, timeout=30, allow_redirects=True)
+                app.logger.info(f"Risposta Loadings: status={loadings_response.status_code}")
                 if loadings_response.status_code == 200:
                     loadings_json = loadings_response.json()
                     loadings_records = loadings_json.get('value', []) if 'value' in loadings_json else (loadings_json if isinstance(loadings_json, list) else [])
@@ -1938,20 +1940,24 @@ def risultati(date_str):
             auth_username = config.get('auth_username', '').strip()
             auth_password = config.get('auth_password', '').strip()
             
+            app.logger.info(f"Configurazione autenticazione: requires_auth={config.get('requires_auth')}, auth_type={auth_type}, username={auth_username if auth_username else 'NON CONFIGURATO'}")
+            
             if auth_type == 'basic' and auth_username and auth_password:
                 from requests.auth import HTTPBasicAuth
                 auth = HTTPBasicAuth(auth_username, auth_password)
-                app.logger.info(f"Autenticazione configurata: username={auth_username}")
+                app.logger.info(f"Autenticazione Basic configurata: username={auth_username}")
             else:
-                app.logger.warning("Autenticazione richiesta ma credenziali non configurate")
+                app.logger.warning(f"Autenticazione richiesta ma credenziali non configurate correttamente: username={auth_username}, password={'***' if auth_password else 'NON CONFIGURATO'}")
         
         # Fai la richiesta DMX
         api_available = False
         records = []
         try:
             app.logger.info(f"Inizio richiesta OData per {date_str}")
-            response = requests.get(full_url, headers=headers, auth=auth, timeout=60, allow_redirects=True)
-            app.logger.info(f"Risposta OData ricevuta: status={response.status_code}")
+            app.logger.info(f"URL completo: {full_url}")
+            app.logger.info(f"Auth configurata: {auth is not None}, username: {config.get('auth_username', 'N/A')}")
+            response = requests.get(full_url, headers=headers, auth=auth, timeout=30, allow_redirects=True)
+            app.logger.info(f"Risposta OData ricevuta: status={response.status_code}, size={len(response.content)} bytes")
             api_available = True
         except requests.exceptions.Timeout as e:
             app.logger.error(f"Timeout nella richiesta OData per {date_str}: {e}")
@@ -2110,7 +2116,9 @@ def risultati(date_str):
         loadings_dict = {}
         try:
             loadings_url = f"{odata_base_url.rstrip('/')}/michelinpal/odata/Loadings"
-            loadings_response = requests.get(loadings_url, headers=headers, auth=auth, timeout=60, allow_redirects=True)
+            app.logger.info(f"Caricamento Loadings da: {loadings_url}")
+            loadings_response = requests.get(loadings_url, headers=headers, auth=auth, timeout=30, allow_redirects=True)
+            app.logger.info(f"Risposta Loadings: status={loadings_response.status_code}")
             if loadings_response.status_code == 200:
                 loadings_json = loadings_response.json()
                 loadings_records = loadings_json.get('value', []) if 'value' in loadings_json else (loadings_json if isinstance(loadings_json, list) else [])
