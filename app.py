@@ -390,9 +390,9 @@ def upload_transform():
         file.save(input_filepath)
         
         try:
-            # Crea il nome del file di output
-            base_name = os.path.splitext(filename)[0]
-            output_filename = f"{base_name}_trasformato.csv"
+            # Crea il nome del file di output nel formato: YDMXEL_YYYYMMDD_HHMM.csv
+            now = datetime.now()
+            output_filename = f"YDMXEL_{now.strftime('%Y%m%d_%H%M')}.csv"
             output_filepath = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
             
             # Processa il file
