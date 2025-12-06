@@ -633,6 +633,23 @@
                 updateIndicator.style.cursor = 'pointer';
                 updateIndicator.addEventListener('click', toggleAutoUpdate);
             }
+            
+            // Notifica la finestra parent (calendario) che l'estrazione è stata completata
+            // Questo permette al calendario di aggiornarsi automaticamente e mostrare il giorno in verde
+            if (window.opener && !window.opener.closed && currentDate) {
+                try {
+                    // Aspetta un po' per assicurarsi che i dati siano stati salvati
+                    setTimeout(() => {
+                        window.opener.postMessage({
+                            type: 'extraction_completed',
+                            date: currentDate
+                        }, '*');
+                        console.log('Messaggio inviato alla finestra parent per aggiornare il calendario:', currentDate);
+                    }, 1000); // Attendi 1 secondo per dare tempo al server di salvare il JSON
+                } catch (e) {
+                    console.warn('Impossibile inviare messaggio alla finestra parent:', e);
+                }
+            }
         });
         
         // Pulisci l'intervallo quando la pagina viene chiusa

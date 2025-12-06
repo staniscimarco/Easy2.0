@@ -1460,6 +1460,29 @@
         // Carica le estrazioni esistenti all'avvio e aggiorna il calendario
         loadExtractions();
         
+        // Ascolta messaggi dalla finestra risultati per aggiornare il calendario
+        window.addEventListener('message', (event) => {
+            // Verifica che il messaggio sia valido (per sicurezza, potresti verificare event.origin)
+            if (event.data && event.data.type === 'extraction_completed') {
+                const dateStr = event.data.date;
+                console.log('Ricevuto messaggio: estrazione completata per', dateStr);
+                
+                // Aggiungi la data al set delle date estratte
+                if (dateStr) {
+                    extractedDates.add(dateStr);
+                    // Ricarica le estrazioni per assicurarsi che il calendario sia aggiornato
+                    loadExtractions().then(() => {
+                        renderCalendar();
+                        console.log('Calendario aggiornato dopo estrazione completata');
+                    }).catch(err => {
+                        console.error('Errore nel ricaricare estrazioni:', err);
+                        // Aggiorna comunque il calendario con la data aggiunta
+                        renderCalendar();
+                    });
+                }
+            }
+        });
+        
         // Aggiungi listener per il pulsante stop
         const stopBtn = document.getElementById('stop-refresh-btn');
         if (stopBtn) {
