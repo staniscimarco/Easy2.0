@@ -376,3 +376,108 @@ def list_extractions(uploads_dir: str) -> List[Dict[str, Any]]:
     
     return extractions
 
+
+# ==================== CHUNKED UPLOAD ====================
+
+def save_chunk(file_id: str, chunk_index: int, chunk_data: bytes) -> bool:
+    """Salva un chunk di file in MongoDB"""
+    client, db = get_mongo_client()
+    
+    if client is not None and db is not None:
+        try:
+            collection = db['csv_chunks']
+            collection.insert_one({
+                'file_id': file_id,
+                'chunk_index': chunk_index,
+                'chunk_data': chunk_data.hex(),  # Salva come hex string
+                'created_at': datetime.now().isoformat()
+            })
+            return True
+        except Exception as e:
+            print(f"⚠️ Errore salvataggio chunk MongoDB: {e}")
+            return False
+    
+    return False
+
+
+def merge_chunks(file_id: str, original_filename: str) -> Optional[str]:
+    """Ricomponi i chunk in un file completo e restituisci il file_id del file completo"""
+    client, db = get_mongo_client()
+    
+    if client is not None and db is not None:
+        try:
+            collection = db['csv_chunks']
+            # Recupera tutti i chunk per questo file_id, ordinati per indice
+            chunks = list(collection.find({'file_id': file_id}).sort('chunk_index', 1))
+            
+            if not chunks:
+                print(f"❌ Nessun chunk trovato per file_id: {file_id}")
+                return None
+            
+            # Ricomponi il file
+            file_data = b''
+            for chunk_doc in chunks:
+                chunk_bytes = bytes.fromhex(chunk_doc['chunk_data'])
+                file_data += chunk_bytes
+            
+            # Salva il file completo in una nuova collection
+            complete_collection = db['csv_transforms']
+            transform_doc = {
+                'file_id': file_id,
+                'original_filename': original_filename,
+                'file_data': file_data.hex(),
+                'created_at': datetime.now().isoformat(),
+                'status': 'merged'
+            }
+            complete_collection.insert_one(transform_doc)
+            
+            # Cancella i chunk dopo il merge
+            collection.delete_many({'file_id': file_id})
+            
+            print(f"✅ File {file_id} ricomposto da {len(chunks)} chunk")
+            return file_id
+        except Exception as e:
+            print(f"⚠️ Errore merge chunks: {e}")
+            return None
+    
+    return None
+
+
+def get_transformed_file(file_id: str) -> Optional[Dict[str, Any]]:
+    """Recupera il file trasformato da MongoDB"""
+    client, db = get_mongo_client()
+    
+    if client is not None and db is not None:
+        try:
+            collection = db['csv_transforms']
+            doc = collection.find_one({'file_id': file_id})
+            if doc:
+                return {
+                    'file_id': doc.get('file_id'),
+                    'original_filename': doc.get('original_filename'),
+                    'output_filename': doc.get('output_filename'),
+                    'file_data': bytes.fromhex(doc.get('file_data', '')),
+                    'rows_processed': doc.get('rows_processed'),
+                    'rows_transformed': doc.get('rows_transformed'),
+                    'missing_codes': doc.get('missing_codes', [])
+                }
+        except Exception as e:
+            print(f"⚠️ Errore recupero file trasformato: {e}")
+    
+    return None
+
+
+def delete_transformed_file(file_id: str) -> bool:
+    """Cancella il file trasformato da MongoDB"""
+    client, db = get_mongo_client()
+    
+    if client is not None and db is not None:
+        try:
+            collection = db['csv_transforms']
+            result = collection.delete_one({'file_id': file_id})
+            return result.deleted_count > 0
+        except Exception as e:
+            print(f"⚠️ Errore cancellazione file trasformato: {e}")
+    
+    return False
+
