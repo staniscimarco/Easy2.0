@@ -712,7 +712,7 @@ def estrai_dati():
             if auth:
                 print("Autenticazione: Basic Auth abilitata")
             
-            response = requests.get(full_url, headers=headers, auth=auth, timeout=30, allow_redirects=True)
+            response = requests.get(full_url, headers=headers, auth=auth, timeout=120, allow_redirects=True)
             
             print(f"Status code: {response.status_code}")
             print(f"Content-Type: {response.headers.get('Content-Type', 'N/A')}")
@@ -1736,7 +1736,7 @@ def estrai_e_analizza():
         loadings_dict = {}
         try:
                 loadings_url = f"{odata_base_url.rstrip('/')}/michelinpal/odata/Loadings"
-                loadings_response = requests.get(loadings_url, headers=headers, auth=auth, timeout=30, allow_redirects=True)
+                loadings_response = requests.get(loadings_url, headers=headers, auth=auth, timeout=120, allow_redirects=True)
                 if loadings_response.status_code == 200:
                     loadings_json = loadings_response.json()
                     loadings_records = loadings_json.get('value', []) if 'value' in loadings_json else (loadings_json if isinstance(loadings_json, list) else [])
@@ -1926,7 +1926,7 @@ def risultati(date_str):
         
         # Fai la richiesta DMX
         try:
-            response = requests.get(full_url, headers=headers, auth=auth, timeout=30, allow_redirects=True)
+            response = requests.get(full_url, headers=headers, auth=auth, timeout=120, allow_redirects=True)
         except requests.exceptions.RequestException as e:
             app.logger.error(f"Errore di connessione OData per {date_str}: {e}")
             error_data = {
@@ -2005,7 +2005,7 @@ def risultati(date_str):
             loadings_dict = {}
             try:
                 loadings_url = f"{odata_base_url.rstrip('/')}/michelinpal/odata/Loadings"
-                loadings_response = requests.get(loadings_url, headers=headers, auth=auth, timeout=30, allow_redirects=True)
+                loadings_response = requests.get(loadings_url, headers=headers, auth=auth, timeout=120, allow_redirects=True)
                 if loadings_response.status_code == 200:
                     loadings_json = loadings_response.json()
                     loadings_records = loadings_json.get('value', []) if 'value' in loadings_json else (loadings_json if isinstance(loadings_json, list) else [])
