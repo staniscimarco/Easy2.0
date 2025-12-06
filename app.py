@@ -2457,7 +2457,7 @@ def test_mongodb():
         try:
             client, db = storage.get_mongo_client()
             
-            if client and db:
+            if client is not None and db is not None:
                 # Test di scrittura
                 test_collection = db['test']
                 test_doc = {

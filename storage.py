@@ -83,7 +83,7 @@ def save_anagrafica(data: Dict[str, str], local_file: str = 'anagrafica.json') -
     """Salva l'anagrafica in MongoDB o file system locale"""
     client, db = get_mongo_client()
     
-    if client and db:
+    if client is not None and db is not None:
         try:
             # Salva in MongoDB
             collection = db['anagrafica']
@@ -118,7 +118,7 @@ def load_anagrafica(local_file: str = 'anagrafica.json') -> Optional[Dict[str, s
     """Carica l'anagrafica da MongoDB o file system locale"""
     client, db = get_mongo_client()
     
-    if client and db:
+    if client is not None and db is not None:
         try:
             # Carica da MongoDB
             collection = db['anagrafica']
@@ -148,7 +148,7 @@ def save_odata_config(config: Dict[str, Any], local_file: str = 'odata_config.js
     """Salva la configurazione OData in MongoDB o file system locale"""
     client, db = get_mongo_client()
     
-    if client and db:
+    if client is not None and db is not None:
         try:
             # Salva in MongoDB
             collection = db['config']
@@ -182,7 +182,7 @@ def load_odata_config(local_file: str = 'odata_config.json') -> Optional[Dict[st
     """Carica la configurazione OData da MongoDB o file system locale"""
     client, db = get_mongo_client()
     
-    if client and db:
+    if client is not None and db is not None:
         try:
             # Carica da MongoDB
             collection = db['config']
@@ -224,7 +224,7 @@ def save_extraction(date_str: str, site: str, data: Dict[str, Any], uploads_dir:
         **data  # Includi tutti i dati dell'analisi
     }
     
-    if client and db:
+    if client is not None and db is not None:
         try:
             # Salva in MongoDB
             collection = db['extractions']
@@ -264,7 +264,7 @@ def load_extraction(date_str: str, site: str, uploads_dir: str) -> Optional[Dict
     """Carica un'estrazione da MongoDB o file system locale"""
     client, db = get_mongo_client()
     
-    if client and db:
+    if client is not None and db is not None:
         try:
             # Carica da MongoDB
             collection = db['extractions']
@@ -316,7 +316,7 @@ def list_extractions(uploads_dir: str) -> List[Dict[str, Any]]:
     client, db = get_mongo_client()
     extractions = []
     
-    if client and db:
+    if client is not None and db is not None:
         try:
             # Carica da MongoDB
             collection = db['extractions']
