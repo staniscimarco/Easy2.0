@@ -29,9 +29,10 @@ if os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV'):
 else:
     app.config['UPLOAD_FOLDER'] = 'uploads'
 
-# Limite file size: Vercel ha un limite hardcoded di 4.5MB per il payload
-# Impostiamo un limite leggermente inferiore per dare un margine
-app.config['MAX_CONTENT_LENGTH'] = 4 * 1024 * 1024  # 4MB max file size (limite Vercel: 4.5MB)
+# Limite file size: aumentato a 20MB
+# NOTA: Vercel ha un limite hardcoded di 4.5MB per le funzioni serverless
+# Per file più grandi, considera di usare un servizio esterno o processare in chunk
+app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20MB max file size
 
 # Crea la cartella uploads se non esiste
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
