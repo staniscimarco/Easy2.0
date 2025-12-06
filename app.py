@@ -6,6 +6,7 @@ import json
 from datetime import datetime, date, timedelta
 from urllib.parse import quote
 from werkzeug.utils import secure_filename
+from werkzeug import exceptions as werkzeug_exceptions
 import requests
 import pandas as pd
 
@@ -28,7 +29,9 @@ if os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV'):
 else:
     app.config['UPLOAD_FOLDER'] = 'uploads'
 
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
+# Limite file size: Vercel ha un limite hardcoded di 4.5MB per il payload
+# Impostiamo un limite leggermente inferiore per dare un margine
+app.config['MAX_CONTENT_LENGTH'] = 4 * 1024 * 1024  # 4MB max file size (limite Vercel: 4.5MB)
 
 # Crea la cartella uploads se non esiste
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)

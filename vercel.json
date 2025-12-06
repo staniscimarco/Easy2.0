@@ -12,6 +12,12 @@
       "dest": "app.py"
     }
   ],
+  "functions": {
+    "app.py": {
+      "maxDuration": 60,
+      "memory": 3008
+    }
+  },
   "env": {
     "FLASK_ENV": "production",
     "VERCEL": "1"
