@@ -1834,11 +1834,9 @@ def estrai_e_analizza():
 @app.route('/risultati/<date_str>')
 def risultati(date_str):
     """Pagina a tutto schermo per visualizzare i risultati analizzati per una data specifica
-    Fa chiamata OData diretta con timeout breve, usa JSON salvato come fallback"""
+    Prima controlla JSON salvato, poi tenta chiamata OData con timeout molto breve"""
     try:
         app.logger.info(f"=== INIZIO estrazione risultati per data: {date_str} ===")
-        app.logger.info(f"Working directory: {os.getcwd()}")
-        app.logger.info(f"Upload folder: {app.config['UPLOAD_FOLDER']} (abs: {os.path.abspath(app.config['UPLOAD_FOLDER'])})")
         
         # Estrai e analizza i dati per la data specificata
         site = 'TST - EDC Torino'
@@ -1851,8 +1849,20 @@ def risultati(date_str):
             flash('Formato data non valido', 'error')
             return redirect(url_for('calendario_estrazione'))
         
-        # Controlla se esiste un JSON salvato per questa data (come fallback)
+        # PRIMA: Controlla se esiste un JSON salvato per questa data
+        # Su Render, è meglio usare sempre JSON salvati per evitare timeout
         json_data = get_json_extraction(date_str, site)
+        if json_data:
+            app.logger.info(f"Trovato JSON salvato per {date_str}, uso quello (evito chiamata OData su Render)")
+            result = json_data.copy()
+            result['from_json'] = True
+            result['api_available'] = False
+            result['message'] = 'Dati dal JSON salvato (estrazione precedente)'
+            return render_template('risultati.html', data=result)
+        
+        # Se non c'è JSON, tenta chiamata OData ma con timeout MOLTO breve (5 secondi)
+        # Su Render free tier, le chiamate OData sono troppo lente
+        app.logger.warning(f"Nessun JSON salvato per {date_str}, tento chiamata OData (timeout 5s - Render può essere lento)")
         
         # Carica configurazione OData
         config = load_odata_config()
@@ -1917,14 +1927,14 @@ def risultati(date_str):
                 auth = HTTPBasicAuth(auth_username, auth_password)
                 app.logger.info(f"Autenticazione configurata: username={auth_username}")
         
-        # Fai la richiesta DMX con timeout molto breve (10 secondi)
+        # Fai la richiesta DMX con timeout MOLTO breve (5 secondi) per evitare worker timeout su Render
         records = []
         try:
-            app.logger.info(f"Inizio richiesta OData per {date_str} (timeout 10s)")
+            app.logger.info(f"Inizio richiesta OData per {date_str} (timeout 5s - Render free tier)")
             app.logger.info(f"URL completo: {full_url}")
             app.logger.info(f"Auth configurata: {auth is not None}")
             
-            response = requests.get(full_url, headers=headers, auth=auth, timeout=10, allow_redirects=True)
+            response = requests.get(full_url, headers=headers, auth=auth, timeout=5, allow_redirects=True)
             app.logger.info(f"Risposta OData ricevuta: status={response.status_code}, size={len(response.content) if response.content else 0} bytes")
             
             if response.status_code == 200:
@@ -2050,11 +2060,12 @@ def risultati(date_str):
                 }
                 return render_template('risultati.html', data=error_data)
         
-        # Carica Loadings per LoadingName (con timeout breve)
+        # Carica Loadings per LoadingName (con timeout MOLTO breve per Render)
         loadings_dict = {}
         try:
             loadings_url = f"{odata_base_url.rstrip('/')}/michelinpal/odata/Loadings"
-            loadings_response = requests.get(loadings_url, headers=headers, auth=auth, timeout=10, allow_redirects=True)
+            app.logger.info(f"Caricamento Loadings (timeout 3s)")
+            loadings_response = requests.get(loadings_url, headers=headers, auth=auth, timeout=3, allow_redirects=True)
             if loadings_response.status_code == 200:
                 loadings_json = loadings_response.json()
                 loadings_records = loadings_json.get('value', []) if 'value' in loadings_json else (loadings_json if isinstance(loadings_json, list) else [])
@@ -2162,21 +2173,12 @@ def risultati(date_str):
         app.logger.error(f"TIMEOUT OData per {date_str}: {e}")
         app.logger.error(f"Traceback: {traceback.format_exc()}")
         
-        # Prova a usare JSON salvato
-        json_data = get_json_extraction(date_str, 'TST - EDC Torino')
-        if json_data:
-            app.logger.info(f"Usando JSON salvato dopo timeout per {date_str}")
-            result = json_data.copy()
-            result['from_json'] = True
-            result['api_available'] = False
-            result['error'] = f'Timeout nella richiesta OData (oltre 10 secondi), dati dal JSON salvato'
-            return render_template('risultati.html', data=result)
-        
-        # Nessun JSON disponibile
+        # Su Render, le chiamate OData sono troppo lente - mostra messaggio chiaro
         error_data = {
             'success': False,
-            'error': f'Timeout nella richiesta OData (oltre 10 secondi). Riprova più tardi.',
+            'error': f'Timeout nella richiesta OData (oltre 5 secondi). Su Render, le chiamate OData possono essere lente. Estrai i dati dal calendario prima di visualizzare i dettagli.',
             'date': date_str,
+            'hint': 'Vai su "Calendario Estrazione", clicca sul giorno per estrarre i dati, poi torna qui per visualizzare i dettagli.',
             'statistics': {
                 'totali': {
                     'totale_pezzi': 0, 'pezzi_checkati': 0, 'pezzi_da_checkare': 0,
