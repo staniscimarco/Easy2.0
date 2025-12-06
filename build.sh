@@ -2,12 +2,15 @@
 # Build script for Render
 set -o errexit
 
-# Upgrade pip
-pip install --upgrade pip
-
-# Install build dependencies
-pip install wheel setuptools
-
-# Install requirements
-pip install -r requirements.txt
+# Force Python 3.11 if available
+if command -v python3.11 &> /dev/null; then
+    python3.11 -m pip install --upgrade pip
+    python3.11 -m pip install wheel setuptools
+    python3.11 -m pip install -r requirements.txt
+else
+    # Fallback to default python
+    pip install --upgrade pip
+    pip install wheel setuptools
+    pip install -r requirements.txt
+fi
 
