@@ -4,6 +4,7 @@ Su Vercel usa MongoDB, in locale usa file system.
 """
 import os
 import json
+from datetime import datetime
 from typing import Optional, Dict, List, Any
 
 # Prova a importare pymongo (opzionale)
