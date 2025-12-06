@@ -2422,58 +2422,105 @@ def risultati(date_str):
 def test_mongodb():
     """Endpoint di test per verificare la connessione MongoDB"""
     try:
+        # Informazioni di debug
+        debug_info = {
+            'storage_available': STORAGE_AVAILABLE,
+            'mongodb_uri_set': bool(os.environ.get('MONGODB_URI')),
+            'mongodb_uri_length': len(os.environ.get('MONGODB_URI', '')) if os.environ.get('MONGODB_URI') else 0,
+            'mongodb_db_name': os.environ.get('MONGODB_DB_NAME', 'easyloading'),
+        }
+        
+        # Verifica se pymongo è installato
+        try:
+            import pymongo
+            debug_info['pymongo_installed'] = True
+            debug_info['pymongo_version'] = pymongo.__version__
+        except ImportError:
+            debug_info['pymongo_installed'] = False
+            debug_info['pymongo_version'] = None
+        
         if not STORAGE_AVAILABLE:
             return jsonify({
                 'success': False,
                 'message': 'Modulo storage non disponibile',
-                'using_filesystem': True
+                'using_filesystem': True,
+                'debug': debug_info
             }), 200
+        
+        # Verifica USE_MONGODB
+        if hasattr(storage, 'USE_MONGODB'):
+            debug_info['use_mongodb_flag'] = storage.USE_MONGODB
+        else:
+            debug_info['use_mongodb_flag'] = None
         
         # Prova a connettersi a MongoDB
-        client, db = storage.get_mongo_client()
-        
-        if client and db:
-            # Test di scrittura
-            test_collection = db['test']
-            test_doc = {
-                'test': True,
-                'timestamp': datetime.now().isoformat(),
-                'message': 'Test connessione MongoDB'
-            }
-            test_collection.insert_one(test_doc)
+        try:
+            client, db = storage.get_mongo_client()
             
-            # Test di lettura
-            result = test_collection.find_one({'test': True})
-            
-            # Pulisci il documento di test
-            test_collection.delete_one({'test': True})
-            
-            # Conta le collezioni
-            collections = db.list_collection_names()
-            
-            return jsonify({
-                'success': True,
-                'message': '✅ MongoDB connesso e funzionante!',
-                'database': MONGODB_DB_NAME if hasattr(storage, 'MONGODB_DB_NAME') else 'easyloading',
-                'collections': collections,
-                'test_write_read': 'OK',
-                'using_mongodb': True,
-                'using_filesystem': False
-            }), 200
-        else:
+            if client and db:
+                # Test di scrittura
+                test_collection = db['test']
+                test_doc = {
+                    'test': True,
+                    'timestamp': datetime.now().isoformat(),
+                    'message': 'Test connessione MongoDB'
+                }
+                test_collection.insert_one(test_doc)
+                
+                # Test di lettura
+                result = test_collection.find_one({'test': True})
+                
+                # Pulisci il documento di test
+                test_collection.delete_one({'test': True})
+                
+                # Conta le collezioni
+                collections = db.list_collection_names()
+                
+                return jsonify({
+                    'success': True,
+                    'message': '✅ MongoDB connesso e funzionante!',
+                    'database': storage.MONGODB_DB_NAME if hasattr(storage, 'MONGODB_DB_NAME') else 'easyloading',
+                    'collections': collections,
+                    'test_write_read': 'OK',
+                    'using_mongodb': True,
+                    'using_filesystem': False,
+                    'debug': debug_info
+                }), 200
+            else:
+                # Prova a ottenere più informazioni sull'errore
+                error_details = []
+                if not debug_info.get('pymongo_installed'):
+                    error_details.append('pymongo non installato')
+                if not debug_info.get('mongodb_uri_set'):
+                    error_details.append('MONGODB_URI non configurato')
+                elif debug_info.get('use_mongodb_flag') is False:
+                    error_details.append('USE_MONGODB è False (verifica pymongo e MONGODB_URI)')
+                
+                return jsonify({
+                    'success': False,
+                    'message': '⚠️ MongoDB non configurato, uso file system locale',
+                    'using_mongodb': False,
+                    'using_filesystem': True,
+                    'error_details': error_details,
+                    'debug': debug_info
+                }), 200
+        except Exception as conn_error:
+            import traceback
             return jsonify({
                 'success': False,
-                'message': '⚠️ MongoDB non configurato, uso file system locale',
+                'message': f'❌ Errore durante connessione MongoDB: {str(conn_error)}',
+                'error': str(conn_error),
                 'using_mongodb': False,
                 'using_filesystem': True,
-                'mongodb_uri_set': bool(os.environ.get('MONGODB_URI'))
+                'debug': debug_info,
+                'traceback': traceback.format_exc()
             }), 200
             
     except Exception as e:
         import traceback
         return jsonify({
             'success': False,
-            'message': f'❌ Errore connessione MongoDB: {str(e)}',
+            'message': f'❌ Errore generale: {str(e)}',
             'error': str(e),
             'traceback': traceback.format_exc(),
             'using_mongodb': False,
