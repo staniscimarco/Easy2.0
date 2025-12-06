@@ -2252,24 +2252,26 @@ def risultati(date_str):
                 }
                 return render_template('risultati.html', data=error_data)
         
-        # Aggiungi informazioni e salva SEMPRE in JSON (cache)
+        # Aggiungi informazioni e salva SEMPRE in JSON
         analysis_result['date'] = date_str
         analysis_result['site'] = site
         analysis_result['extraction_date'] = datetime.now().isoformat()
         analysis_result['count'] = len(records)
         analysis_result['from_json'] = False
         analysis_result['api_available'] = True
+        analysis_result['success'] = True
         
-        # Salva SEMPRE in JSON per mantenere lo storico (cache)
-        # Questo permette di avere dati anche oltre i 7 giorni dell'API
-        app.logger.info(f"Salvataggio JSON (cache) per {date_str}")
+        # Salva SEMPRE in JSON per mantenere lo storico
+        # Per oggi e ieri, questo aggiorna sempre il JSON con i dati più recenti
+        app.logger.info(f"Salvataggio JSON per {date_str} (diff giorni: {days_diff})")
         saved_filename = save_json_extraction(date_str, site, analysis_result)
         if saved_filename:
             analysis_result['saved_filename'] = saved_filename
-            analysis_result['message'] = 'Dati aggiornati dall\'API e salvati in cache'
-            app.logger.info(f"JSON cache salvato con successo: {saved_filename}")
+            analysis_result['message'] = f'Dati aggiornati dall\'API e salvati in JSON (file: {saved_filename})'
+            app.logger.info(f"JSON salvato con successo: {saved_filename}")
         else:
-            app.logger.warning(f"Impossibile salvare JSON cache per {date_str}, ma continuo comunque")
+            app.logger.error(f"ERRORE: Impossibile salvare JSON per {date_str}")
+            analysis_result['message'] = 'Dati aggiornati dall\'API ma ERRORE nel salvataggio JSON'
         
         app.logger.info(f"Rendering template risultati per {date_str}")
         return render_template('risultati.html', data=analysis_result)
