@@ -2184,6 +2184,12 @@ def risultati(date_str):
         return render_template('risultati.html', data=error_data)
 
 
+@app.route('/static/sw.js')
+def service_worker():
+    """Serve il service worker con il content-type corretto"""
+    return app.send_static_file('sw.js'), 200, {'Content-Type': 'application/javascript'}
+
+
 if __name__ == '__main__':
     # In produzione, Render usa gunicorn, quindi questo viene eseguito solo in locale
     debug_mode = os.environ.get('FLASK_ENV') != 'production'
