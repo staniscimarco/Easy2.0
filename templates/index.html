@@ -249,33 +249,52 @@
         const totalChunks = Math.ceil(file.size / chunkSize);
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Caricamento in corso...';
         
-        // Funzione per caricare un chunk
+        // Funzione per caricare un chunk (usa JSON per evitare limite Vercel)
         function uploadChunk(chunkIndex) {
             return new Promise((resolve, reject) => {
                 const start = chunkIndex * chunkSize;
                 const end = Math.min(start + chunkSize, file.size);
                 const chunk = file.slice(start, end);
                 
-                const formData = new FormData();
-                formData.append('chunk', chunk);
-                formData.append('chunkIndex', chunkIndex);
-                formData.append('totalChunks', totalChunks);
-                formData.append('fileId', fileId);
-                formData.append('filename', file.name);
-                
-                fetch('/api/upload_chunk', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        resolve(data);
-                    } else {
-                        reject(new Error(data.error || 'Errore upload chunk'));
+                // Converti chunk in hex string per evitare limite Vercel 4.5MB
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const arrayBuffer = e.target.result;
+                        const uint8Array = new Uint8Array(arrayBuffer);
+                        const hexString = Array.from(uint8Array).map(b => b.toString(16).padStart(2, '0')).join('');
+                        
+                        // Invia come JSON invece di FormData (bypass limite Vercel)
+                        fetch('/api/upload_chunk', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                chunkData: hexString,
+                                chunkIndex: chunkIndex,
+                                totalChunks: totalChunks,
+                                fileId: fileId,
+                                filename: file.name
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                resolve(data);
+                            } else {
+                                reject(new Error(data.error || 'Errore upload chunk'));
+                            }
+                        })
+                        .catch(reject);
+                    } catch (error) {
+                        reject(error);
                     }
-                })
-                .catch(reject);
+                };
+                reader.onerror = function() {
+                    reject(new Error('Errore lettura chunk'));
+                };
+                reader.readAsArrayBuffer(chunk);
             });
         }
         

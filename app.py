@@ -201,27 +201,37 @@ def transform_article_code(code):
     return code
 
 
-def process_csv_file(input_filepath, output_filepath):
-    """Processa il file CSV applicando le trasformazioni"""
+def process_csv_file(input_filepath=None, output_filepath=None, file_bytes=None):
+    """Processa il file CSV applicando le trasformazioni
+    Può lavorare con filepath (filesystem) o file_bytes (memoria)"""
     global anagrafica_data
     
     if anagrafica_data is None:
         raise ValueError("Anagrafica non caricata. Carica prima l'anagrafica articoli.")
     
-    # Rileva il delimitatore
-    with open(input_filepath, 'r', encoding='utf-8-sig') as f:
-        first_line = f.readline()
+    # Se file_bytes è fornito, usa quello (memoria), altrimenti usa filepath (filesystem)
+    if file_bytes:
+        # Lavora in memoria
+        input_data = file_bytes.decode('utf-8-sig')
+        input_stream = io.StringIO(input_data)
+        output_stream = io.StringIO()
+    else:
+        # Lavora con filesystem
+        input_stream = open(input_filepath, 'r', encoding='utf-8-sig')
+        output_stream = open(output_filepath, 'w', encoding='utf-8', newline='')
+    
+    try:
+        # Rileva il delimitatore
+        first_line = input_stream.readline()
         delimiter = ';' if ';' in first_line else ','
-    
-    rows_processed = 0
-    rows_transformed = 0
-    missing_codes = set()  # Set per raccogliere i codici mancanti (senza duplicati)
-    
-    with open(input_filepath, 'r', encoding='utf-8-sig') as infile, \
-         open(output_filepath, 'w', encoding='utf-8', newline='') as outfile:
+        input_stream.seek(0)  # Reset per rileggere dall'inizio
         
-        reader = csv.reader(infile, delimiter=delimiter)
-        writer = csv.writer(outfile, delimiter=delimiter, quoting=csv.QUOTE_MINIMAL)
+        rows_processed = 0
+        rows_transformed = 0
+        missing_codes = set()
+        
+        reader = csv.reader(input_stream, delimiter=delimiter)
+        writer = csv.writer(output_stream, delimiter=delimiter, quoting=csv.QUOTE_MINIMAL)
         
         # Leggi e scrivi l'header
         header = next(reader)
@@ -231,7 +241,6 @@ def process_csv_file(input_filepath, output_filepath):
         try:
             article_col_index = header.index('ARTICLE')
         except ValueError:
-            # Prova a cercare senza case sensitivity
             article_col_index = next((i for i, col in enumerate(header) if col.upper() == 'ARTICLE'), None)
             if article_col_index is None:
                 raise ValueError("Colonna 'ARTICLE' non trovata nel file CSV")
@@ -242,34 +251,37 @@ def process_csv_file(input_filepath, output_filepath):
                 original_code = row[article_col_index].strip() if row[article_col_index] else ''
                 
                 if original_code:
-                    # Applica le trasformazioni
                     transformed_code = transform_article_code(original_code)
                     
-                    # Se il codice inizia con cso_, cerca nell'anagrafica
                     if transformed_code and transformed_code.lower().startswith('cso_'):
-                        # Normalizza in maiuscolo per la ricerca
                         search_code = transformed_code.upper()
-                        # Cerca nella colonna C (ITM_0) dell'anagrafica
                         if search_code in anagrafica_data:
-                            # Sostituisci con il valore della colonna D (COD_0)
                             replacement = anagrafica_data[search_code]
-                            if replacement and replacement.strip():  # Verifica che il valore non sia vuoto
+                            if replacement and replacement.strip():
                                 transformed_code = replacement.strip()
                                 rows_transformed += 1
                         else:
-                            # Codice non trovato nell'anagrafica
                             missing_codes.add(search_code)
                     
                     row[article_col_index] = transformed_code
                 else:
-                    # Mantieni il valore originale se vuoto
                     row[article_col_index] = original_code
                 
                 rows_processed += 1
             
             writer.writerow(row)
-    
-    return rows_processed, rows_transformed, list(missing_codes)
+        
+        # Se lavoriamo in memoria, restituisci i bytes del risultato
+        if file_bytes:
+            output_stream.seek(0)
+            result_bytes = output_stream.getvalue().encode('utf-8')
+            return rows_processed, rows_transformed, list(missing_codes), result_bytes
+        else:
+            return rows_processed, rows_transformed, list(missing_codes)
+    finally:
+        if not file_bytes:
+            input_stream.close()
+            output_stream.close()
 
 
 @app.route('/')
@@ -546,49 +558,42 @@ def process_uploaded_file(file_id, file_bytes, filename):
 
 @app.route('/api/upload_chunk', methods=['POST'])
 def upload_chunk():
-    """Endpoint per caricare un chunk del file CSV"""
+    """Endpoint per caricare un chunk del file CSV - usa JSON per evitare limite Vercel"""
     try:
-        chunk_data = request.files.get('chunk')
-        chunk_index = request.form.get('chunkIndex', type=int)
-        total_chunks = request.form.get('totalChunks', type=int)
-        file_id = request.form.get('fileId')
-        filename = request.form.get('filename', 'upload.csv')
+        # Accetta JSON invece di FormData per evitare limite 4.5MB
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Richiesta deve essere JSON'}), 400
         
-        if not chunk_data or chunk_index is None or total_chunks is None or not file_id:
+        chunk_data_hex = data.get('chunkData')  # Hex string invece di file
+        chunk_index = data.get('chunkIndex', type=int)
+        total_chunks = data.get('totalChunks', type=int)
+        file_id = data.get('fileId')
+        filename = data.get('filename', 'upload.csv')
+        
+        if not chunk_data_hex or chunk_index is None or total_chunks is None or not file_id:
             return jsonify({'error': 'Parametri mancanti'}), 400
         
-        # Leggi i dati del chunk
-        chunk_bytes = chunk_data.read()
+        # Decodifica da hex
+        try:
+            chunk_bytes = bytes.fromhex(chunk_data_hex)
+        except ValueError:
+            return jsonify({'error': 'Formato chunk non valido'}), 400
         
-        # Salva il chunk usando storage (MongoDB o fallback)
-        if STORAGE_AVAILABLE:
-            success = storage.save_chunk(file_id, chunk_index, chunk_bytes)
-            if success:
-                app.logger.info(f"Chunk {chunk_index + 1}/{total_chunks} salvato per file {file_id}")
-                return jsonify({
-                    'success': True,
-                    'chunkIndex': chunk_index,
-                    'message': f'Chunk {chunk_index + 1}/{total_chunks} caricato'
-                })
-            else:
-                return jsonify({'error': 'Errore nel salvataggio del chunk'}), 500
-        else:
-            # Fallback: salva in file system locale
-            uploads_dir = app.config['UPLOAD_FOLDER']
-            chunks_dir = os.path.join(uploads_dir, 'chunks', file_id)
-            os.makedirs(chunks_dir, exist_ok=True)
-            
-            chunk_filename = f'chunk_{chunk_index}'
-            chunk_path = os.path.join(chunks_dir, chunk_filename)
-            with open(chunk_path, 'wb') as f:
-                f.write(chunk_bytes)
-            
-            app.logger.info(f"Chunk {chunk_index + 1}/{total_chunks} salvato per file {file_id}")
+        # Salva SEMPRE in MongoDB (non usare filesystem)
+        if not STORAGE_AVAILABLE:
+            return jsonify({'error': 'MongoDB non disponibile. Configura MONGODB_URI su Vercel.'}), 500
+        
+        success = storage.save_chunk(file_id, chunk_index, chunk_bytes)
+        if success:
+            app.logger.info(f"Chunk {chunk_index + 1}/{total_chunks} salvato in MongoDB per file {file_id}")
             return jsonify({
                 'success': True,
                 'chunkIndex': chunk_index,
-                'message': f'Chunk {chunk_index + 1}/{total_chunks} caricato'
+                'message': f'Chunk {chunk_index + 1}/{total_chunks} caricato in MongoDB'
             })
+        else:
+            return jsonify({'error': 'Errore nel salvataggio del chunk in MongoDB'}), 500
     except Exception as e:
         import traceback
         app.logger.error(f"Errore upload chunk: {traceback.format_exc()}")
@@ -597,7 +602,7 @@ def upload_chunk():
 
 @app.route('/api/merge_chunks', methods=['POST'])
 def merge_chunks():
-    """Ricomponi i chunk in un file completo e processalo"""
+    """Ricomponi i chunk in un file completo e processalo - tutto in MongoDB"""
     try:
         data = request.get_json()
         file_id = data.get('fileId')
@@ -610,100 +615,74 @@ def merge_chunks():
         if anagrafica_data is None:
             return jsonify({'error': 'Anagrafica non caricata'}), 400
         
-        # Ricomponi il file usando storage
-        if STORAGE_AVAILABLE:
-            merged_file_id = storage.merge_chunks(file_id, filename)
-            if not merged_file_id:
-                return jsonify({'error': 'Errore nel merge dei chunk'}), 500
-            
-            # Recupera il file completo
-            file_doc = storage.get_transformed_file(merged_file_id)
-            if not file_doc:
-                return jsonify({'error': 'File non trovato dopo il merge'}), 404
-            
-            # Salva temporaneamente per processarlo
+        # Verifica MongoDB disponibile
+        if not STORAGE_AVAILABLE:
+            return jsonify({'error': 'MongoDB non disponibile. Configura MONGODB_URI su Vercel.'}), 500
+        
+        # Ricomponi il file in MongoDB
+        merged_file_id = storage.merge_chunks(file_id, filename)
+        if not merged_file_id:
+            return jsonify({'error': 'Errore nel merge dei chunk in MongoDB'}), 500
+        
+        # Recupera il file completo da MongoDB
+        file_doc = storage.get_transformed_file(merged_file_id)
+        if not file_doc:
+            return jsonify({'error': 'File non trovato dopo il merge'}), 404
+        
+        # Processa il file direttamente da memoria (evita filesystem Vercel)
+        file_bytes = file_doc['file_data']
+        
+        # Processa in memoria senza usare filesystem
+        now = datetime.now()
+        output_filename = f"YDMXEL_{now.strftime('%Y%m%d_%H%M')}.csv"
+        
+        try:
+            result = process_csv_file(file_bytes=file_bytes)
+            rows_processed, rows_transformed, missing_codes, transformed_content = result
+        except TypeError:
+            # Fallback se process_csv_file non supporta file_bytes (vecchia versione)
+            # Usa filesystem temporaneo solo se necessario
             uploads_dir = app.config['UPLOAD_FOLDER']
             input_filepath = os.path.join(uploads_dir, f'{file_id}_{filename}')
+            output_filepath = os.path.join(uploads_dir, output_filename)
+            
             with open(input_filepath, 'wb') as f:
-                f.write(file_doc['file_data'])
-        else:
-            # Fallback: ricomponi da file system locale
-            uploads_dir = app.config['UPLOAD_FOLDER']
-            chunks_dir = os.path.join(uploads_dir, 'chunks', file_id)
+                f.write(file_bytes)
             
-            if not os.path.exists(chunks_dir):
-                return jsonify({'error': 'Chunk directory non trovata'}), 404
+            rows_processed, rows_transformed, missing_codes = process_csv_file(input_filepath, output_filepath)
             
-            # Conta i chunk presenti
-            chunk_files = [f for f in os.listdir(chunks_dir) if f.startswith('chunk_')]
-            total_chunks = len(chunk_files)
+            with open(output_filepath, 'rb') as f:
+                transformed_content = f.read()
             
-            if total_chunks == 0:
-                return jsonify({'error': 'Nessun chunk trovato'}), 400
-            
-            # Ricomponi il file
-            input_filepath = os.path.join(uploads_dir, f'{file_id}_{filename}')
-            with open(input_filepath, 'wb') as outfile:
-                for i in range(total_chunks):
-                    chunk_path = os.path.join(chunks_dir, f'chunk_{i}')
-                    if not os.path.exists(chunk_path):
-                        return jsonify({'error': f'Chunk {i} mancante'}), 400
-                    with open(chunk_path, 'rb') as chunk_file:
-                        outfile.write(chunk_file.read())
-                    # Cancella il chunk dopo averlo letto
-                    os.remove(chunk_path)
-            
-            # Cancella la directory chunks
+            # Cancella file temporanei
             try:
-                os.rmdir(chunks_dir)
+                os.remove(input_filepath)
+                os.remove(output_filepath)
             except:
                 pass
         
-        # Processa il file
-        now = datetime.now()
-        output_filename = f"YDMXEL_{now.strftime('%Y%m%d_%H%M')}.csv"
-        output_filepath = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-        
-        rows_processed, rows_transformed, missing_codes = process_csv_file(input_filepath, output_filepath)
-        
-        # Leggi il file trasformato
-        with open(output_filepath, 'rb') as f:
-            transformed_content = f.read()
-        
-        # Salva il risultato in MongoDB per il download
-        if STORAGE_AVAILABLE:
-            client, db = storage.get_mongo_client()
-            if client is not None and db is not None:
-                collection = db['csv_transforms']
-                # Aggiorna il documento esistente o creane uno nuovo
-                collection.update_one(
-                    {'file_id': file_id},
-                    {
-                        '$set': {
-                            'output_filename': output_filename,
-                            'file_data': transformed_content.hex(),
-                            'rows_processed': rows_processed,
-                            'rows_transformed': rows_transformed,
-                            'missing_codes': missing_codes,
-                            'status': 'processed',
-                            'updated_at': datetime.now().isoformat()
-                        }
-                    },
-                    upsert=True
-                )
-                app.logger.info(f"File trasformato salvato in MongoDB: {file_id}")
-        
-        # Cancella il file input originale
-        try:
-            os.remove(input_filepath)
-        except:
-            pass
-        
-        # Cancella anche il file output locale (sarà scaricato da MongoDB)
-        try:
-            os.remove(output_filepath)
-        except:
-            pass
+        # Salva SEMPRE il risultato in MongoDB (non usare filesystem)
+        client, db = storage.get_mongo_client()
+        if client is not None and db is not None:
+            collection = db['csv_transforms']
+            collection.update_one(
+                {'file_id': file_id},
+                {
+                    '$set': {
+                        'output_filename': output_filename,
+                        'file_data': transformed_content.hex(),  # Salva come hex
+                        'rows_processed': rows_processed,
+                        'rows_transformed': rows_transformed,
+                        'missing_codes': missing_codes,
+                        'status': 'processed',
+                        'updated_at': datetime.now().isoformat()
+                    }
+                },
+                upsert=True
+            )
+            app.logger.info(f"File trasformato salvato in MongoDB (senza filesystem): {file_id}")
+        else:
+            return jsonify({'error': 'MongoDB non disponibile per salvare il risultato'}), 500
         
         return jsonify({
             'success': True,
