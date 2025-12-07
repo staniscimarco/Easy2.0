@@ -185,17 +185,32 @@
     });
 
     // Gestione submit form trasformazione con upload in chunk per file grandi
-    document.getElementById('transform-form')?.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const btn = document.getElementById('transform-btn');
-        const fileInput = document.getElementById('transform-file');
-        
-        if (!fileInput.files || fileInput.files.length === 0) {
-            alert('Seleziona un file CSV da trasformare');
-            return false;
-        }
-        
-        const file = fileInput.files[0];
+    const transformForm = document.getElementById('transform-form');
+    if (transformForm) {
+        transformForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            
+            console.log('Form submit intercettato');
+            
+            const btn = document.getElementById('transform-btn');
+            const fileInput = document.getElementById('transform-file');
+            
+            if (!fileInput) {
+                console.error('File input non trovato');
+                alert('Errore: file input non trovato');
+                return false;
+            }
+            
+            if (!fileInput.files || fileInput.files.length === 0) {
+                console.log('Nessun file selezionato');
+                alert('Seleziona un file CSV da trasformare');
+                return false;
+            }
+            
+            const file = fileInput.files[0];
+            console.log('File selezionato:', file.name, 'Dimensione:', file.size, 'bytes');
         // USA SEMPRE CHUNK per TUTTI i file (Render supporta file grandi, ma usiamo chunk per efficienza)
         // Chunk da 1.5MB: quando convertito in Base64 diventa ~2MB
         const chunkSize = 1.5 * 1024 * 1024; // 1.5MB per chunk
@@ -308,21 +323,14 @@
                 });
         }
         
-        // Inizia il caricamento
-        uploadAllChunks();
-        
-        return false;
-    });
-    
-    // Blocca SEMPRE l'invio tradizionale del form (doppio controllo)
-    const transformForm = document.getElementById('transform-form');
-    if (transformForm) {
-        transformForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
+            // Inizia il caricamento
+            console.log('Inizio upload chunk...');
+            uploadAllChunks();
+            
             return false;
-        }, true); // Capture phase per intercettare prima di qualsiasi altro handler
+        });
+    } else {
+        console.error('Form transform-form non trovato!');
     }
     
     // Funzione per processare il file dopo l'upload
