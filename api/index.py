@@ -1,6 +1,6 @@
 """
 Handler per Vercel serverless functions.
-Questo file wrappa l'app Flask per Vercel usando WSGI.
+Questo file wrappa l'app Flask per Vercel.
 """
 import sys
 import os
@@ -14,10 +14,7 @@ os.chdir(root_dir)
 
 # Importa l'app Flask
 try:
-    from app import app as flask_app
-    # Vercel richiede un'app WSGI, esportiamo direttamente l'app Flask
-    # che è già un'applicazione WSGI
-    app = flask_app
+    from app import app
 except Exception as e:
     # Se c'è un errore nell'importazione, crea un'app di fallback
     from flask import Flask
