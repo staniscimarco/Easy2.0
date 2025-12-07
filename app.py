@@ -431,6 +431,119 @@ def upload_transform():
     return redirect(url_for('index'))
 
 
+@app.route('/api/upload_direct', methods=['POST'])
+def upload_direct():
+    """Endpoint per caricare un file piccolo direttamente in MongoDB"""
+    try:
+        data = request.get_json()
+        file_id = data.get('fileId')
+        filename = data.get('filename', 'upload.csv')
+        file_data_hex = data.get('fileData')
+        
+        if not file_id or not file_data_hex:
+            return jsonify({'error': 'Parametri mancanti'}), 400
+        
+        # Decodifica da hex
+        file_bytes = bytes.fromhex(file_data_hex)
+        
+        # Salva direttamente in MongoDB
+        if STORAGE_AVAILABLE:
+            client, db = storage.get_mongo_client()
+            if client is not None and db is not None:
+                collection = db['csv_transforms']
+                collection.update_one(
+                    {'file_id': file_id},
+                    {
+                        '$set': {
+                            'original_filename': filename,
+                            'file_data': file_data_hex,
+                            'status': 'uploaded',
+                            'created_at': datetime.now().isoformat()
+                        }
+                    },
+                    upsert=True
+                )
+                app.logger.info(f"File {filename} caricato direttamente in MongoDB: {file_id}")
+                
+                # Processa immediatamente
+                return process_uploaded_file(file_id, file_bytes, filename)
+            else:
+                return jsonify({'error': 'MongoDB non disponibile'}), 500
+        else:
+            return jsonify({'error': 'Storage non disponibile'}), 500
+    except Exception as e:
+        import traceback
+        app.logger.error(f"Errore upload diretto: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+
+def process_uploaded_file(file_id, file_bytes, filename):
+    """Processa un file caricato in MongoDB"""
+    try:
+        global anagrafica_data
+        if anagrafica_data is None:
+            return jsonify({'error': 'Anagrafica non caricata'}), 400
+        
+        # Salva temporaneamente per processarlo
+        uploads_dir = app.config['UPLOAD_FOLDER']
+        input_filepath = os.path.join(uploads_dir, f'{file_id}_{filename}')
+        with open(input_filepath, 'wb') as f:
+            f.write(file_bytes)
+        
+        # Processa il file
+        now = datetime.now()
+        output_filename = f"YDMXEL_{now.strftime('%Y%m%d_%H%M')}.csv"
+        output_filepath = os.path.join(uploads_dir, output_filename)
+        
+        rows_processed, rows_transformed, missing_codes = process_csv_file(input_filepath, output_filepath)
+        
+        # Leggi il file trasformato
+        with open(output_filepath, 'rb') as f:
+            transformed_content = f.read()
+        
+        # Salva il risultato in MongoDB
+        if STORAGE_AVAILABLE:
+            client, db = storage.get_mongo_client()
+            if client is not None and db is not None:
+                collection = db['csv_transforms']
+                collection.update_one(
+                    {'file_id': file_id},
+                    {
+                        '$set': {
+                            'output_filename': output_filename,
+                            'file_data': transformed_content.hex(),
+                            'rows_processed': rows_processed,
+                            'rows_transformed': rows_transformed,
+                            'missing_codes': missing_codes,
+                            'status': 'processed',
+                            'updated_at': datetime.now().isoformat()
+                        }
+                    }
+                )
+                app.logger.info(f"File trasformato salvato in MongoDB: {file_id}")
+        
+        # Cancella i file temporanei
+        try:
+            os.remove(input_filepath)
+            os.remove(output_filepath)
+        except:
+            pass
+        
+        return jsonify({
+            'success': True,
+            'download_id': file_id,
+            'outputFilename': output_filename,
+            'rowsProcessed': rows_processed,
+            'rowsTransformed': rows_transformed,
+            'missingCodes': missing_codes,
+            'hasMissingCodes': len(missing_codes) > 0
+        })
+    except Exception as e:
+        import traceback
+        app.logger.error(f"Errore processamento file: {traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/upload_chunk', methods=['POST'])
 def upload_chunk():
     """Endpoint per caricare un chunk del file CSV"""

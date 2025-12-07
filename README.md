@@ -6,7 +6,9 @@ Applicazione Flask per la trasformazione di file CSV e l'estrazione di dati da O
 
 L'applicazione è configurata per il deployment automatico su Vercel. Per maggiori dettagli, consulta:
 - [DEPLOY_VERCEL.md](DEPLOY_VERCEL.md) - Guida completa al deployment
+- [DEPLOY_AUTOMATICO.md](DEPLOY_AUTOMATICO.md) - Risoluzione problemi deploy automatico
 - [VERCEL_MONGODB_SETUP.md](VERCEL_MONGODB_SETUP.md) - Configurazione MongoDB su Vercel
+- [MONGODB_SETUP.md](MONGODB_SETUP.md) - Setup MongoDB Atlas
 
 ### Deployment Automatico
 
@@ -54,7 +56,10 @@ L'applicazione sarà disponibile su `http://localhost:5004`
 ## 📝 Note
 
 - I dati vengono salvati in **MongoDB Atlas** per persistenza tra i deployment
-- La cartella `uploads/` viene creata automaticamente
+- Gli upload CSV vengono salvati direttamente in MongoDB (bypass Vercel)
+- File fino a 4.5MB: upload diretto in MongoDB
+- File più grandi: upload in chunk automatico (3MB per chunk)
+- La cartella `uploads/` viene creata automaticamente solo per file temporanei
 - Assicurati di non committare file sensibili (credenziali, ecc.)
 - Le credenziali MongoDB devono essere configurate come variabili d'ambiente su Vercel
 
