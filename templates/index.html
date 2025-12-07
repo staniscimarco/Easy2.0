@@ -171,51 +171,45 @@
         }
     });
 
-    // Listener per aggiornare il label quando viene selezionato un file
-    const transformFileInput = document.getElementById('transform-file');
-    const transformLabel = document.getElementById('transform-label');
-    
-    if (transformFileInput && transformLabel) {
-        // Fai click sul file input quando si clicca sul label
-        transformLabel.style.cursor = 'pointer';
-        transformLabel.addEventListener('click', function(e) {
-            if (!transformFileInput.disabled) {
-                console.log('Label clicked, triggering file input');
-                e.preventDefault();
-                e.stopPropagation();
-                transformFileInput.click();
-            }
-        });
+    // Listener per aggiornare il label quando viene selezionato un file (TRASFORMAZIONE)
+    document.getElementById('transform-file')?.addEventListener('change', function(e) {
+        console.log('Transform file input change event triggered');
+        const label = document.getElementById('transform-label');
+        if (!label) {
+            console.error('transform-label non trovato!');
+            return;
+        }
         
-        // Aggiorna il label quando viene selezionato un file
-        transformFileInput.addEventListener('change', function(e) {
-            console.log('File input change event triggered');
-            console.log('Files selected:', e.target.files.length);
+        console.log('Files selected:', e.target.files.length);
+        
+        if (e.target.files && e.target.files.length > 0) {
+            const fileName = e.target.files[0].name;
+            const fileSize = (e.target.files[0].size / 1024 / 1024).toFixed(2);
+            console.log('File selected:', fileName, 'Size:', fileSize, 'MB');
             
-            if (e.target.files && e.target.files.length > 0) {
-                const fileName = e.target.files[0].name;
-                const fileSize = (e.target.files[0].size / 1024 / 1024).toFixed(2);
-                console.log('File selected:', fileName, 'Size:', fileSize, 'MB');
-                
-                transformLabel.innerHTML = '<i class="bi bi-file-earmark-check me-2"></i>File selezionato: ' + fileName + ' (' + fileSize + ' MB)';
-                transformLabel.style.borderColor = '#28a745';
-                transformLabel.style.background = '#d4edda';
-                transformLabel.style.color = '#155724';
-            } else {
-                console.log('No file selected');
-                transformLabel.innerHTML = '<i class="bi bi-file-earmark-spreadsheet me-2"></i>Clicca per selezionare il file CSV da trasformare';
-                transformLabel.style.borderColor = '';
-                transformLabel.style.background = '';
-                transformLabel.style.color = '';
-            }
-        });
-        console.log('File input change listener attached');
-    } else {
-        console.error('transform-file o transform-label non trovati!', {
-            fileInput: !!transformFileInput,
-            label: !!transformLabel
-        });
-    }
+            label.innerHTML = '<i class="bi bi-file-earmark-check me-2"></i>File selezionato: ' + fileName + ' (' + fileSize + ' MB)';
+            label.style.borderColor = '#28a745';
+            label.style.background = '#d4edda';
+            label.style.color = '#155724';
+        } else {
+            console.log('No file selected');
+            label.innerHTML = '<i class="bi bi-file-earmark-spreadsheet me-2"></i>Clicca per selezionare il file CSV da trasformare';
+            label.style.borderColor = '';
+            label.style.background = '';
+            label.style.color = '';
+        }
+    });
+    
+    // Fai click sul file input quando si clicca sul label (TRASFORMAZIONE)
+    document.getElementById('transform-label')?.addEventListener('click', function(e) {
+        const fileInput = document.getElementById('transform-file');
+        if (fileInput && !fileInput.disabled) {
+            console.log('Transform label clicked, triggering file input');
+            e.preventDefault();
+            e.stopPropagation();
+            fileInput.click();
+        }
+    });
 
     // Gestione submit form trasformazione con upload in chunk per file grandi
     const transformForm = document.getElementById('transform-form');
