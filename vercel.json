@@ -27,6 +27,7 @@
       "dest": "app.py"
     }
   ],
+  "public": false,
   "env": {
     "FLASK_ENV": "production",
     "VERCEL": "1"

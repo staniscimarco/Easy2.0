@@ -2966,17 +2966,20 @@ def serve_static(filename):
     """Serve i file statici (logo, icone, manifest, ecc.)"""
     try:
         # Su Vercel, i file statici devono essere serviti dalla cartella static
-        static_path = os.path.join(app.static_folder, filename)
-        if os.path.exists(static_path):
-            return app.send_static_file(filename)
-        else:
-            app.logger.warning(f"File statico non trovato: {filename} in {app.static_folder}")
-            return "File non trovato", 404
+        return app.send_static_file(filename)
     except Exception as e:
         app.logger.error(f"Errore servizio file statico {filename}: {e}")
         import traceback
         app.logger.error(traceback.format_exc())
-        return f"Errore: {str(e)}", 404
+        return f"File non trovato: {filename}", 404
+
+@app.route('/favicon.ico')
+def favicon():
+    """Serve il favicon"""
+    try:
+        return app.send_static_file('icon-192.png')
+    except:
+        return '', 204  # No content se non trovato
 
 @app.route('/static/sw.js')
 def service_worker():
