@@ -496,7 +496,7 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/static/sw.js')
+                navigator.serviceWorker.register('{{ url_for("static", filename="sw.js") }}')
                     .then((registration) => {
                         console.log('Service Worker registrato con successo:', registration.scope);
                     })
