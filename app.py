@@ -383,7 +383,7 @@ def upload_anagrafica():
 
 @app.route('/upload_transform', methods=['POST'])
 def upload_transform():
-    """Endpoint per caricare e trasformare il file CSV"""
+    """Endpoint per caricare e trasformare il file CSV - DEPRECATO: usa /api/upload_direct o /api/upload_chunk"""
     global anagrafica_data
     
     if anagrafica_data is None:
@@ -398,6 +398,16 @@ def upload_transform():
     
     if file.filename == '':
         flash('Nessun file selezionato', 'error')
+        return redirect(url_for('index'))
+    
+    # Blocca file > 4.5MB - devono usare MongoDB
+    max_size = 4.5 * 1024 * 1024  # 4.5MB
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+    
+    if file_size > max_size:
+        flash(f'File troppo grande ({file_size / 1024 / 1024:.2f}MB). I file > 4.5MB devono essere caricati tramite MongoDB. Usa il pulsante "Trasforma e Scarica" che gestisce automaticamente file grandi.', 'error')
         return redirect(url_for('index'))
     
     if file and file.filename.endswith('.csv'):
