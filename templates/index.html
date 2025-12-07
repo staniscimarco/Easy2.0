@@ -235,56 +235,56 @@
             // Funzione per caricare un chunk (usa JSON per evitare limite Vercel)
             function uploadChunk(chunkIndex) {
                 return new Promise((resolve, reject) => {
-                const start = chunkIndex * chunkSize;
-                const end = Math.min(start + chunkSize, file.size);
-                const chunk = file.slice(start, end);
-                
-                // Converti chunk in Base64 string per upload efficiente
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const arrayBuffer = e.target.result;
-                        // Usa un metodo più efficiente per convertire in Base64
-                        // Evita "Maximum call stack size exceeded" con array grandi
-                        const uint8Array = new Uint8Array(arrayBuffer);
-                        let binaryString = '';
-                        const chunkSize = 8192; // Processa in blocchi per evitare stack overflow
-                        for (let i = 0; i < uint8Array.length; i += chunkSize) {
-                            const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
-                            binaryString += String.fromCharCode.apply(null, chunk);
-                        }
-                        const base64String = btoa(binaryString);
-                        
-                        // Invia come JSON invece di FormData (più efficiente)
-                        fetch('/api/upload_chunk', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                chunkData: base64String, // Base64 invece di hex
-                                chunkIndex: chunkIndex,
-                                totalChunks: totalChunks,
-                                fileId: fileId,
-                                filename: file.name
-                            })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                resolve(data);
-                            } else {
-                                reject(new Error(data.error || 'Errore upload chunk'));
+                    const start = chunkIndex * chunkSize;
+                    const end = Math.min(start + chunkSize, file.size);
+                    const chunk = file.slice(start, end);
+                    
+                    // Converti chunk in Base64 string per upload efficiente
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const arrayBuffer = e.target.result;
+                            // Usa un metodo più efficiente per convertire in Base64
+                            // Evita "Maximum call stack size exceeded" con array grandi
+                            const uint8Array = new Uint8Array(arrayBuffer);
+                            let binaryString = '';
+                            const base64ChunkSize = 8192; // Processa in blocchi per evitare stack overflow
+                            for (let i = 0; i < uint8Array.length; i += base64ChunkSize) {
+                                const subChunk = uint8Array.subarray(i, Math.min(i + base64ChunkSize, uint8Array.length));
+                                binaryString += String.fromCharCode.apply(null, subChunk);
                             }
-                        })
-                        .catch(reject);
-                    } catch (error) {
-                        reject(error);
-                    }
-                };
-                reader.onerror = function() {
-                    reject(new Error('Errore lettura chunk'));
-                };
+                            const base64String = btoa(binaryString);
+                            
+                            // Invia come JSON invece di FormData (più efficiente)
+                            fetch('/api/upload_chunk', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    chunkData: base64String, // Base64 invece di hex
+                                    chunkIndex: chunkIndex,
+                                    totalChunks: totalChunks,
+                                    fileId: fileId,
+                                    filename: file.name
+                                })
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    resolve(data);
+                                } else {
+                                    reject(new Error(data.error || 'Errore upload chunk'));
+                                }
+                            })
+                            .catch(reject);
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    reader.onerror = function() {
+                        reject(new Error('Errore lettura chunk'));
+                    };
                     reader.readAsArrayBuffer(chunk);
                 });
             }
@@ -293,49 +293,31 @@
             let currentChunk = 0;
             function uploadAllChunks() {
                 if (currentChunk >= totalChunks) {
-                // Tutti i chunk caricati, ora merge e processa
-                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Elaborazione in corso...';
-                
-                fetch('/api/merge_chunks', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        fileId: fileId,
-                        filename: file.name,
-                        totalChunks: totalChunks
+                    // Tutti i chunk caricati, ora merge e processa
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Elaborazione in corso...';
+                    
+                    fetch('/api/merge_chunks', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            fileId: fileId,
+                            filename: file.name,
+                            totalChunks: totalChunks
+                        })
                     })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    processFile(fileId, data);
-                })
-                .catch(error => {
-                    console.error('Errore:', error);
-                    alert('Errore durante la trasformazione: ' + error.message);
-                    btn.disabled = false;
-                    btn.innerHTML = originalBtnText;
-                });
-                return;
-            }
-            
-            // Aggiorna progresso
-            const progress = Math.round((currentChunk / totalChunks) * 100);
-            btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Caricamento ${progress}% (${currentChunk + 1}/${totalChunks})...`;
-            
-            // Carica il chunk corrente
-            uploadChunk(currentChunk)
-                .then(() => {
-                    currentChunk++;
-                    uploadAllChunks();
-                })
-                .catch(error => {
-                    console.error('Errore upload chunk:', error);
-                    alert('Errore durante il caricamento: ' + error.message);
-                    btn.disabled = false;
-                    btn.innerHTML = originalBtnText;
-                });
+                    .then(response => response.json())
+                    .then(data => {
+                        processFile(fileId, data);
+                    })
+                    .catch(error => {
+                        console.error('Errore:', error);
+                        alert('Errore durante la trasformazione: ' + error.message);
+                        btn.disabled = false;
+                        btn.innerHTML = originalBtnText;
+                    });
+                    return;
                 }
                 
                 // Aggiorna progresso
@@ -356,16 +338,6 @@
                     });
             }
             
-            // Inizia il caricamento
-            console.log('Inizio upload chunk...');
-            uploadAllChunks();
-            
-            return false;
-        });
-    } else {
-        console.error('Form transform-form non trovato!');
-    }
-    
             // Funzione per processare il file dopo l'upload
             function processFile(fileId, data) {
                 if (data.success) {
@@ -384,11 +356,8 @@
                         document.body.removeChild(a);
                         
                         // Reset bottone
-                        const btn = document.getElementById('transform-btn');
-                        if (btn) {
-                            btn.disabled = false;
-                            btn.innerHTML = '<i class="bi bi-magic"></i> Trasforma e Scarica';
-                        }
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-magic"></i> Trasforma e Scarica';
                         
                         alert(`File trasformato con successo!\n${data.rowsProcessed} righe processate\n${data.rowsTransformed} codici sostituiti`);
                     }
@@ -396,6 +365,15 @@
                     throw new Error(data.error || 'Errore durante la trasformazione');
                 }
             }
+            
+            // Inizia il caricamento
+            console.log('Inizio upload chunk...');
+            uploadAllChunks();
+            
+            return false;
         });
+    } else {
+        console.error('Form transform-form non trovato!');
+    }
 </script>
 {% endblock %}
