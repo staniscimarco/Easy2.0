@@ -546,8 +546,8 @@ def upload_chunk():
             return jsonify({'error': 'Richiesta deve essere JSON'}), 400
         
         chunk_data_hex = data.get('chunkData')  # Hex string invece di file
-        chunk_index = data.get('chunkIndex', type=int)
-        total_chunks = data.get('totalChunks', type=int)
+        chunk_index = int(data.get('chunkIndex', 0))
+        total_chunks = int(data.get('totalChunks', 0))
         file_id = data.get('fileId')
         filename = data.get('filename', 'upload.csv')
         
