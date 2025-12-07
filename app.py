@@ -2965,10 +2965,18 @@ def test_mongodb():
 def serve_static(filename):
     """Serve i file statici (logo, icone, manifest, ecc.)"""
     try:
-        return app.send_static_file(filename)
+        # Su Vercel, i file statici devono essere serviti dalla cartella static
+        static_path = os.path.join(app.static_folder, filename)
+        if os.path.exists(static_path):
+            return app.send_static_file(filename)
+        else:
+            app.logger.warning(f"File statico non trovato: {filename} in {app.static_folder}")
+            return "File non trovato", 404
     except Exception as e:
         app.logger.error(f"Errore servizio file statico {filename}: {e}")
-        return "File non trovato", 404
+        import traceback
+        app.logger.error(traceback.format_exc())
+        return f"Errore: {str(e)}", 404
 
 @app.route('/static/sw.js')
 def service_worker():
