@@ -149,6 +149,48 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Successo Trasformazione -->
+<div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-success text-white border-0">
+                <h5 class="modal-title" id="successModalLabel">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    Trasformazione Completata!
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-4">
+                <div class="mb-4">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+                </div>
+                <h4 class="mb-3">File trasformato con successo!</h4>
+                <div class="row g-3 mt-3">
+                    <div class="col-6">
+                        <div class="p-3 bg-light rounded">
+                            <i class="bi bi-list-ul text-primary d-block mb-2" style="font-size: 2rem;"></i>
+                            <div class="fw-bold text-primary" id="modalRowsProcessed">0</div>
+                            <small class="text-muted">Righe processate</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 bg-light rounded">
+                            <i class="bi bi-arrow-repeat text-success d-block mb-2" style="font-size: 2rem;"></i>
+                            <div class="fw-bold text-success" id="modalRowsTransformed">0</div>
+                            <small class="text-muted">Codici sostituiti</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 justify-content-center">
+                <button type="button" class="btn btn-success btn-lg px-5" data-bs-dismiss="modal">
+                    <i class="bi bi-check-lg me-2"></i>Perfetto!
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
