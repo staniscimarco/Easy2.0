@@ -424,11 +424,8 @@
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container-fluid">
-            <a class="navbar-brand" href="/" style="display: flex; align-items: center;">
-                <img src="{{ url_for('static', filename='logo.png') }}?v=2" 
-                     alt="Logo Easy 2.0" 
-                     style="height: 60px; width: auto; margin-right: 10px; object-fit: contain; background-color: white; padding: 5px; border-radius: 4px;"
-                     onerror="console.error('Logo non caricato, URL:', this.src); this.onerror=null; this.src='{{ url_for('static', filename='icon-192.png') }}?v=1'; this.style.height='50px';">
+            <a class="navbar-brand" href="/" style="display: flex; align-items: center; text-decoration: none;">
+                <span style="color: white; font-weight: bold; font-size: 1.5rem;">Easy 2.0</span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
