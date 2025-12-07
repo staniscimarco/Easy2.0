@@ -76,7 +76,12 @@ def init_json_files():
                 else:
                     app.logger.info(f"Configurazione OData non trovata in storage, userà valori di default")
             except Exception as e:
-                app.logger.warning(f"Errore nel caricamento configurazione da storage: {e}")
+                # Non loggare errori MongoDB come errori critici - l'app può funzionare senza
+                error_str = str(e)
+                if 'authentication failed' in error_str.lower() or 'bad auth' in error_str.lower():
+                    app.logger.warning(f"MongoDB non disponibile (credenziali non valide), configurazione OData userà valori di default")
+                else:
+                    app.logger.warning(f"Errore nel caricamento configurazione da storage: {error_str}")
         else:
             app.logger.info("Su Vercel senza storage, configurazione OData userà valori di default")
         return
