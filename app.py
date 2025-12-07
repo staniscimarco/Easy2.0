@@ -547,11 +547,12 @@ def upload_chunk():
         if not chunk_data_hex or chunk_index is None or total_chunks is None or not file_id:
             return jsonify({'error': 'Parametri mancanti'}), 400
         
-        # Decodifica da hex
+        # Decodifica da Base64 (più efficiente di hex)
         try:
-            chunk_bytes = bytes.fromhex(chunk_data_hex)
-        except ValueError:
-            return jsonify({'error': 'Formato chunk non valido'}), 400
+            import base64
+            chunk_bytes = base64.b64decode(chunk_data_hex)
+        except Exception as e:
+            return jsonify({'error': f'Formato chunk non valido: {str(e)}'}), 400
         
         # Salva SEMPRE in MongoDB (non usare filesystem)
         if not STORAGE_AVAILABLE:

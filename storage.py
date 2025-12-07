@@ -389,7 +389,7 @@ def save_chunk(file_id: str, chunk_index: int, chunk_data: bytes) -> bool:
             collection.insert_one({
                 'file_id': file_id,
                 'chunk_index': chunk_index,
-                'chunk_data': chunk_data.hex(),  # Salva come hex string
+                'chunk_data': base64.b64encode(chunk_data).decode('utf-8'),  # Salva come Base64 (più efficiente)
                 'created_at': datetime.now().isoformat()
             })
             return True
@@ -417,7 +417,7 @@ def merge_chunks(file_id: str, original_filename: str) -> Optional[str]:
             # Ricomponi il file
             file_data = b''
             for chunk_doc in chunks:
-                chunk_bytes = bytes.fromhex(chunk_doc['chunk_data'])
+                chunk_bytes = base64.b64decode(chunk_doc['chunk_data'])  # Decodifica Base64
                 file_data += chunk_bytes
             
             # Salva il file completo in una nuova collection
@@ -425,7 +425,7 @@ def merge_chunks(file_id: str, original_filename: str) -> Optional[str]:
             transform_doc = {
                 'file_id': file_id,
                 'original_filename': original_filename,
-                'file_data': file_data.hex(),
+                'file_data': base64.b64encode(file_data).decode('utf-8'),  # Base64 invece di hex
                 'created_at': datetime.now().isoformat(),
                 'status': 'merged'
             }
@@ -456,7 +456,7 @@ def get_transformed_file(file_id: str) -> Optional[Dict[str, Any]]:
                     'file_id': doc.get('file_id'),
                     'original_filename': doc.get('original_filename'),
                     'output_filename': doc.get('output_filename'),
-                    'file_data': bytes.fromhex(doc.get('file_data', '')),
+                    'file_data': base64.b64decode(doc.get('file_data', '')),  # Decodifica Base64
                     'rows_processed': doc.get('rows_processed'),
                     'rows_transformed': doc.get('rows_transformed'),
                     'missing_codes': doc.get('missing_codes', [])

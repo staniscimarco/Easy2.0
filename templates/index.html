@@ -222,7 +222,8 @@
                     try {
                         const arrayBuffer = e.target.result;
                         const uint8Array = new Uint8Array(arrayBuffer);
-                        const hexString = Array.from(uint8Array).map(b => b.toString(16).padStart(2, '0')).join('');
+                        // Usa Base64 invece di hex (33% overhead invece di 100%)
+                        const base64String = btoa(String.fromCharCode(...uint8Array));
                         
                         // Invia come JSON invece di FormData (bypass limite Vercel)
                         fetch('/api/upload_chunk', {
@@ -231,7 +232,7 @@
                                 'Content-Type': 'application/json'
                             },
                             body: JSON.stringify({
-                                chunkData: hexString,
+                                chunkData: base64String, // Base64 invece di hex
                                 chunkIndex: chunkIndex,
                                 totalChunks: totalChunks,
                                 fileId: fileId,
