@@ -426,10 +426,9 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="/">
                 <img src="{{ url_for('static', filename='logo.png') }}" 
-                     alt="Logo" 
+                     alt="Logo Easy 2.0" 
                      style="height: 60px; width: auto; margin-right: 10px; object-fit: contain; background-color: white; padding: 5px; border-radius: 4px;"
-                     onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
-                <span style="display: none; color: white; font-weight: bold; font-size: 1.5rem;">Easy 2.0</span>
+                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='icon-192.png') }}'; this.style.height='50px';">
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
