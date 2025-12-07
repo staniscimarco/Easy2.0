@@ -1,5 +1,11 @@
 {
   "version": 2,
+  "builds": [
+    {
+      "src": "app.py",
+      "use": "@vercel/python"
+    }
+  ],
   "routes": [
     {
       "src": "/static/(.*)",
@@ -20,8 +26,7 @@
   ],
   "functions": {
     "app.py": {
-      "includeFiles": "static/**",
-      "runtime": "@vercel/python"
+      "includeFiles": "static/**"
     }
   },
   "env": {
