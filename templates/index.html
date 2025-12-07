@@ -196,8 +196,8 @@
         }
         
         const file = fileInput.files[0];
-        // USA SEMPRE CHUNK per TUTTI i file (bypass completo Vercel)
-        // Chunk da 1.5MB: quando convertito in hex diventa ~3MB (sotto limite 4.5MB)
+        // USA SEMPRE CHUNK per TUTTI i file (Railway supporta fino a 100MB, ma usiamo chunk per efficienza)
+        // Chunk da 1.5MB: quando convertito in Base64 diventa ~2MB
         const chunkSize = 1.5 * 1024 * 1024; // 1.5MB per chunk
         const fileId = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         
@@ -216,7 +216,7 @@
                 const end = Math.min(start + chunkSize, file.size);
                 const chunk = file.slice(start, end);
                 
-                // Converti chunk in hex string per evitare limite Vercel 4.5MB
+                // Converti chunk in Base64 string per upload efficiente
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     try {
@@ -225,7 +225,7 @@
                         // Usa Base64 invece di hex (33% overhead invece di 100%)
                         const base64String = btoa(String.fromCharCode(...uint8Array));
                         
-                        // Invia come JSON invece di FormData (bypass limite Vercel)
+                        // Invia come JSON invece di FormData (più efficiente)
                         fetch('/api/upload_chunk', {
                             method: 'POST',
                             headers: {

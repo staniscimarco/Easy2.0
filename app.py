@@ -22,16 +22,11 @@ app = Flask(__name__)
 # Usa la secret key da variabile d'ambiente o una di default per sviluppo
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
 
-# Su Vercel (serverless), usa /tmp per i file (filesystem è read-only tranne /tmp)
-# In locale o su altri hosting, usa la cartella uploads
-if os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV'):
-    app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
-else:
-    app.config['UPLOAD_FOLDER'] = 'uploads'
+# Configurazione cartella uploads
+# Su Railway e altri hosting, usa la cartella uploads
+app.config['UPLOAD_FOLDER'] = 'uploads'
 
-# Limite file size: aumentato a 20MB
-# NOTA: Vercel ha un limite hardcoded di 4.5MB per le funzioni serverless
-# Per file più grandi, considera di usare un servizio esterno o processare in chunk
+# Limite file size: 20MB (Railway supporta fino a 100MB)
 app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20MB max file size
 
 # Crea la cartella uploads se non esiste
