@@ -59,21 +59,24 @@ def get_mongo_client():
             print(error_msg)
             _mongo_client = None
             _mongo_db = None
-            raise Exception(error_msg)  # Rilancia per essere catturato dall'endpoint
+            return None, None
         except ServerSelectionTimeoutError as e:
             error_msg = f"⚠️ ServerSelectionTimeoutError: {str(e)}"
             print(error_msg)
             _mongo_client = None
             _mongo_db = None
-            raise Exception(error_msg)  # Rilancia per essere catturato dall'endpoint
+            return None, None
         except Exception as e:
-            error_msg = f"⚠️ Errore MongoDB generico: {type(e).__name__}: {str(e)}"
-            print(error_msg)
-            import traceback
-            print(f"Traceback: {traceback.format_exc()}")
+            # Non stampare il traceback completo per errori di autenticazione comuni
+            error_str = str(e)
+            if 'authentication failed' in error_str.lower() or 'bad auth' in error_str.lower():
+                print(f"⚠️ Errore autenticazione MongoDB: credenziali non valide")
+            else:
+                error_msg = f"⚠️ Errore MongoDB generico: {type(e).__name__}: {error_str}"
+                print(error_msg)
             _mongo_client = None
             _mongo_db = None
-            raise Exception(error_msg)  # Rilancia per essere catturato dall'endpoint
+            return None, None
     
     return _mongo_client, _mongo_db
 
