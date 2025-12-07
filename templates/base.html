@@ -13,14 +13,14 @@
     <title>{% block title %}Easy 2.0 - Sistema di Gestione{% endblock %}</title>
     
     <!-- PWA Manifest -->
-    <link rel="manifest" href="/static/manifest.json">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     
     <!-- Favicon e icone -->
-    <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="/static/icon-512.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/static/icon-180.png">
-    <link rel="apple-touch-icon" sizes="192x192" href="/static/icon-192.png">
-    <link rel="apple-touch-icon" sizes="512x512" href="/static/icon-512.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icon-192.png') }}">
+    <link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='icon-512.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icon-180.png') }}">
+    <link rel="apple-touch-icon" sizes="192x192" href="{{ url_for('static', filename='icon-192.png') }}">
+    <link rel="apple-touch-icon" sizes="512x512" href="{{ url_for('static', filename='icon-512.png') }}">
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
