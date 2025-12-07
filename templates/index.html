@@ -257,9 +257,16 @@
                 reader.onload = function(e) {
                     try {
                         const arrayBuffer = e.target.result;
+                        // Usa un metodo più efficiente per convertire in Base64
+                        // Evita "Maximum call stack size exceeded" con array grandi
                         const uint8Array = new Uint8Array(arrayBuffer);
-                        // Usa Base64 invece di hex (33% overhead invece di 100%)
-                        const base64String = btoa(String.fromCharCode(...uint8Array));
+                        let binaryString = '';
+                        const chunkSize = 8192; // Processa in blocchi per evitare stack overflow
+                        for (let i = 0; i < uint8Array.length; i += chunkSize) {
+                            const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
+                            binaryString += String.fromCharCode.apply(null, chunk);
+                        }
+                        const base64String = btoa(binaryString);
                         
                         // Invia come JSON invece di FormData (più efficiente)
                         fetch('/api/upload_chunk', {
