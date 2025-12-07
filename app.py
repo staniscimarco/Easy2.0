@@ -3005,7 +3005,21 @@ def favicon():
         return response
     except Exception as e:
         app.logger.error(f"Errore servizio favicon: {e}")
+        import traceback
+        app.logger.error(traceback.format_exc())
         return '', 204  # No content se non trovato
+
+@app.route('/manifest.json')
+def manifest():
+    """Serve il manifest.json"""
+    try:
+        response = app.send_static_file('manifest.json')
+        response.headers['Content-Type'] = 'application/json'
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        return response
+    except Exception as e:
+        app.logger.error(f"Errore servizio manifest: {e}")
+        return '', 404
 
 @app.route('/static/sw.js')
 def service_worker():
