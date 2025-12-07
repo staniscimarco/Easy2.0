@@ -15,6 +15,10 @@
       "dest": "/static/$1"
     },
     {
+      "src": "/favicon.ico",
+      "dest": "/static/icon-192.png"
+    },
+    {
       "src": "/(.*)",
       "dest": "app.py"
     }

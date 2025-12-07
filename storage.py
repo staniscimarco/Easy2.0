@@ -4,6 +4,7 @@ Su Render usa MongoDB, in locale usa file system.
 """
 import os
 import json
+import base64
 from datetime import datetime
 from typing import Optional, Dict, List, Any
 

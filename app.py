@@ -2955,6 +2955,15 @@ def test_mongodb():
         }), 500
 
 
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    """Serve i file statici (logo, icone, manifest, ecc.)"""
+    try:
+        return app.send_static_file(filename)
+    except Exception as e:
+        app.logger.error(f"Errore servizio file statico {filename}: {e}")
+        return "File non trovato", 404
+
 @app.route('/static/sw.js')
 def service_worker():
     """Serve il service worker con il content-type corretto"""
