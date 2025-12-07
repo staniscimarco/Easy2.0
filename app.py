@@ -2965,6 +2965,9 @@ def test_mongodb():
 def serve_static(filename):
     """Serve i file statici (logo, icone, manifest, ecc.)"""
     try:
+        # Log per debug
+        app.logger.info(f"Richiesta file statico: {filename}, static_folder: {app.static_folder}")
+        
         # Determina il content-type in base all'estensione
         content_type = 'application/octet-stream'
         if filename.endswith('.png'):
@@ -2983,12 +2986,14 @@ def serve_static(filename):
         response = app.send_static_file(filename)
         response.headers['Content-Type'] = content_type
         response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        app.logger.info(f"File statico servito con successo: {filename}")
         return response
     except Exception as e:
         app.logger.error(f"Errore servizio file statico {filename}: {e}")
         import traceback
         app.logger.error(traceback.format_exc())
-        return f"File non trovato: {filename}", 404
+        # Restituisci 404 con dettagli per debug
+        return jsonify({'error': f'File non trovato: {filename}', 'static_folder': app.static_folder}), 404
 
 @app.route('/favicon.ico')
 def favicon():
