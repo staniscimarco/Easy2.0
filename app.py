@@ -3049,14 +3049,25 @@ def serve_static(filename):
 def favicon():
     """Serve il favicon"""
     try:
-        response = app.send_static_file('icon-192.png')
-        response.headers['Content-Type'] = 'image/png'
-        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
-        return response
+        # Prova a servire icon-192.png
+        try:
+            response = app.send_static_file('icon-192.png')
+            response.headers['Content-Type'] = 'image/png'
+            response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+            return response
+        except:
+            # Se non trova icon-192.png, prova logo.png
+            try:
+                response = app.send_static_file('logo.png')
+                response.headers['Content-Type'] = 'image/png'
+                response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+                return response
+            except:
+                # Se non trova nessun file, restituisci 204 No Content (standard per favicon mancante)
+                return '', 204
     except Exception as e:
-        app.logger.error(f"Errore servizio favicon: {e}")
-        import traceback
-        app.logger.error(traceback.format_exc())
+        # In caso di errore imprevisto, restituisci sempre 204 invece di 500
+        app.logger.warning(f"Favicon non disponibile: {e}")
         return '', 204  # No content se non trovato
 
 @app.route('/manifest.json')
