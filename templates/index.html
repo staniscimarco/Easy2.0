@@ -171,18 +171,39 @@
         }
     });
 
-    document.getElementById('transform-file')?.addEventListener('change', function(e) {
-        const label = document.getElementById('transform-label');
-        if (e.target.files.length > 0) {
-            label.innerHTML = '<i class="bi bi-file-earmark-check me-2"></i>File selezionato: ' + e.target.files[0].name;
-            label.style.borderColor = '#28a745';
-            label.style.background = '#d4edda';
-        } else {
-            label.innerHTML = '<i class="bi bi-file-earmark-spreadsheet me-2"></i>Clicca per selezionare il file CSV da trasformare';
-            label.style.borderColor = '';
-            label.style.background = '';
-        }
-    });
+    // Listener per aggiornare il label quando viene selezionato un file
+    const transformFileInput = document.getElementById('transform-file');
+    const transformLabel = document.getElementById('transform-label');
+    
+    if (transformFileInput && transformLabel) {
+        transformFileInput.addEventListener('change', function(e) {
+            console.log('File input change event triggered');
+            console.log('Files selected:', e.target.files.length);
+            
+            if (e.target.files && e.target.files.length > 0) {
+                const fileName = e.target.files[0].name;
+                const fileSize = (e.target.files[0].size / 1024 / 1024).toFixed(2);
+                console.log('File selected:', fileName, 'Size:', fileSize, 'MB');
+                
+                transformLabel.innerHTML = '<i class="bi bi-file-earmark-check me-2"></i>File selezionato: ' + fileName + ' (' + fileSize + ' MB)';
+                transformLabel.style.borderColor = '#28a745';
+                transformLabel.style.background = '#d4edda';
+                transformLabel.style.color = '#155724';
+            } else {
+                console.log('No file selected');
+                transformLabel.innerHTML = '<i class="bi bi-file-earmark-spreadsheet me-2"></i>Clicca per selezionare il file CSV da trasformare';
+                transformLabel.style.borderColor = '';
+                transformLabel.style.background = '';
+                transformLabel.style.color = '';
+            }
+        });
+        console.log('File input change listener attached');
+    } else {
+        console.error('transform-file o transform-label non trovati!', {
+            fileInput: !!transformFileInput,
+            label: !!transformLabel
+        });
+    }
 
     // Gestione submit form trasformazione con upload in chunk per file grandi
     const transformForm = document.getElementById('transform-form');
