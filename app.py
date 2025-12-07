@@ -2965,8 +2965,13 @@ def test_mongodb():
 def serve_static(filename):
     """Serve i file statici (logo, icone, manifest, ecc.)"""
     try:
-        # Log per debug
-        app.logger.info(f"Richiesta file statico: {filename}, static_folder: {app.static_folder}")
+        # Su Vercel, il percorso potrebbe essere diverso
+        import os
+        static_path = os.path.join(app.static_folder, filename)
+        app.logger.info(f"Richiesta file statico: {filename}")
+        app.logger.info(f"static_folder: {app.static_folder}")
+        app.logger.info(f"static_path completo: {static_path}")
+        app.logger.info(f"File esiste: {os.path.exists(static_path)}")
         
         # Determina il content-type in base all'estensione
         content_type = 'application/octet-stream'
@@ -2983,17 +2988,37 @@ def serve_static(filename):
         elif filename.endswith('.css'):
             content_type = 'text/css'
         
-        response = app.send_static_file(filename)
-        response.headers['Content-Type'] = content_type
-        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
-        app.logger.info(f"File statico servito con successo: {filename}")
-        return response
+        # Prova prima con send_static_file (metodo standard Flask)
+        try:
+            response = app.send_static_file(filename)
+            response.headers['Content-Type'] = content_type
+            response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+            app.logger.info(f"File servito con send_static_file: {filename}")
+            return response
+        except Exception as e1:
+            app.logger.warning(f"send_static_file fallito: {e1}, provo con percorso diretto")
+            # Fallback: leggi il file direttamente
+            if os.path.exists(static_path):
+                with open(static_path, 'rb') as f:
+                    file_data = f.read()
+                from flask import Response
+                response = Response(file_data, mimetype=content_type)
+                response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+                app.logger.info(f"File servito con percorso diretto: {filename}")
+                return response
+            else:
+                raise FileNotFoundError(f"File non trovato: {static_path}")
     except Exception as e:
         app.logger.error(f"Errore servizio file statico {filename}: {e}")
         import traceback
         app.logger.error(traceback.format_exc())
         # Restituisci 404 con dettagli per debug
-        return jsonify({'error': f'File non trovato: {filename}', 'static_folder': app.static_folder}), 404
+        return jsonify({
+            'error': f'File non trovato: {filename}',
+            'static_folder': app.static_folder,
+            'filename': filename,
+            'traceback': traceback.format_exc()
+        }), 404
 
 @app.route('/favicon.ico')
 def favicon():
