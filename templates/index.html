@@ -361,34 +361,49 @@
         uploadAllChunks();
         
         return false;
-        
-        // Funzione per processare il file dopo l'upload
-        function processFile(fileId, data) {
-            if (data.success) {
-                // Controlla se ci sono codici mancanti
-                if (data.hasMissingCodes) {
-                    // Mostra pagina con codici mancanti
-                    window.location.href = `/transform_result?fileId=${fileId}`;
-                } else {
-                    // Scarica direttamente il file
-                    const downloadUrl = `/api/download_transformed/${fileId}`;
-                    const a = document.createElement('a');
-                    a.href = downloadUrl;
-                    a.download = data.outputFilename;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    
-                    // Reset bottone
-                    btn.disabled = false;
-                    btn.innerHTML = originalBtnText;
-                    
-                    alert(`File trasformato con successo!\n${data.rowsProcessed} righe processate\n${data.rowsTransformed} codici sostituiti`);
-                }
+    });
+    
+    // Blocca SEMPRE l'invio tradizionale del form (doppio controllo)
+    const transformForm = document.getElementById('transform-form');
+    if (transformForm) {
+        transformForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            return false;
+        }, true); // Capture phase per intercettare prima di qualsiasi altro handler
+    }
+    
+    // Funzione per processare il file dopo l'upload
+    function processFile(fileId, data) {
+        if (data.success) {
+            // Controlla se ci sono codici mancanti
+            if (data.hasMissingCodes) {
+                // Mostra pagina con codici mancanti
+                window.location.href = `/transform_result?fileId=${fileId}`;
             } else {
-                throw new Error(data.error || 'Errore durante la trasformazione');
+                // Scarica direttamente il file
+                const downloadUrl = `/api/download_transformed/${fileId}`;
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = data.outputFilename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                // Reset bottone
+                const btn = document.getElementById('transform-btn');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-magic"></i> Trasforma e Scarica';
+                }
+                
+                alert(`File trasformato con successo!\n${data.rowsProcessed} righe processate\n${data.rowsTransformed} codici sostituiti`);
             }
+        } else {
+            throw new Error(data.error || 'Errore durante la trasformazione');
         }
+    }
     });
 </script>
 {% endblock %}
