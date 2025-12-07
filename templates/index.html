@@ -196,58 +196,18 @@
         }
         
         const file = fileInput.files[0];
-        const maxDirectUpload = 4.5 * 1024 * 1024; // 4.5MB - limite Vercel per upload diretto
-        const chunkSize = 3 * 1024 * 1024; // 3MB per chunk
+        // USA SEMPRE CHUNK per TUTTI i file (bypass completo Vercel)
+        // Chunk da 1.5MB: quando convertito in hex diventa ~3MB (sotto limite 4.5MB)
+        const chunkSize = 1.5 * 1024 * 1024; // 1.5MB per chunk
         const fileId = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         
         // Mostra indicatore di caricamento
         const originalBtnText = btn.innerHTML;
         btn.disabled = true;
         
-        // Se il file è piccolo, carica direttamente in MongoDB
-        if (file.size <= maxDirectUpload) {
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Caricamento diretto in MongoDB...';
-            
-            // Leggi il file e caricalo direttamente
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const fileData = e.target.result;
-                
-                // Carica direttamente in MongoDB
-                fetch('/api/upload_direct', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        fileId: fileId,
-                        filename: file.name,
-                        fileData: Array.from(new Uint8Array(fileData)).map(b => b.toString(16).padStart(2, '0')).join('') // Hex string
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Processa il file
-                        processFile(fileId, data);
-                    } else {
-                        throw new Error(data.error || 'Errore upload');
-                    }
-                })
-                .catch(error => {
-                    console.error('Errore:', error);
-                    alert('Errore durante il caricamento: ' + error.message);
-                    btn.disabled = false;
-                    btn.innerHTML = originalBtnText;
-                });
-            };
-            reader.readAsArrayBuffer(file);
-            return false;
-        }
-        
-        // Per file grandi, usa chunk
+        // Calcola numero di chunk
         const totalChunks = Math.ceil(file.size / chunkSize);
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Caricamento in corso...';
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Preparazione upload (${totalChunks} chunk)...`;
         
         // Funzione per caricare un chunk (usa JSON per evitare limite Vercel)
         function uploadChunk(chunkIndex) {

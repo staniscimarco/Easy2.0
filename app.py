@@ -455,48 +455,11 @@ def upload_transform():
 
 @app.route('/api/upload_direct', methods=['POST'])
 def upload_direct():
-    """Endpoint per caricare un file piccolo direttamente in MongoDB"""
-    try:
-        data = request.get_json()
-        file_id = data.get('fileId')
-        filename = data.get('filename', 'upload.csv')
-        file_data_hex = data.get('fileData')
-        
-        if not file_id or not file_data_hex:
-            return jsonify({'error': 'Parametri mancanti'}), 400
-        
-        # Decodifica da hex
-        file_bytes = bytes.fromhex(file_data_hex)
-        
-        # Salva direttamente in MongoDB
-        if STORAGE_AVAILABLE:
-            client, db = storage.get_mongo_client()
-            if client is not None and db is not None:
-                collection = db['csv_transforms']
-                collection.update_one(
-                    {'file_id': file_id},
-                    {
-                        '$set': {
-                            'original_filename': filename,
-                            'file_data': file_data_hex,
-                            'status': 'uploaded',
-                            'created_at': datetime.now().isoformat()
-                        }
-                    },
-                    upsert=True
-                )
-                app.logger.info(f"File {filename} caricato direttamente in MongoDB: {file_id}")
-                
-                # Processa immediatamente
-                return process_uploaded_file(file_id, file_bytes, filename)
-            else:
-                return jsonify({'error': 'MongoDB non disponibile'}), 500
-        else:
-            return jsonify({'error': 'Storage non disponibile'}), 500
-    except Exception as e:
-        import traceback
-        app.logger.error(f"Errore upload diretto: {traceback.format_exc()}")
-        return jsonify({'error': str(e)}), 500
+    """Endpoint DEPRECATO - usa sempre /api/upload_chunk per evitare limiti Vercel"""
+    return jsonify({
+        'error': 'Questo endpoint è deprecato. Usa sempre il sistema a chunk per tutti i file.',
+        'message': 'Il sistema gestisce automaticamente file di qualsiasi dimensione tramite chunk.'
+    }), 400
 
 
 def process_uploaded_file(file_id, file_bytes, filename):
