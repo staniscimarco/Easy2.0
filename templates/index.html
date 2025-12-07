@@ -176,6 +176,17 @@
     const transformLabel = document.getElementById('transform-label');
     
     if (transformFileInput && transformLabel) {
+        // Fai click sul file input quando si clicca sul label
+        transformLabel.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!transformFileInput.disabled) {
+                console.log('Label clicked, triggering file input');
+                transformFileInput.click();
+            }
+        });
+        
+        // Aggiorna il label quando viene selezionato un file
         transformFileInput.addEventListener('change', function(e) {
             console.log('File input change event triggered');
             console.log('Files selected:', e.target.files.length);
