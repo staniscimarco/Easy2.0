@@ -67,23 +67,9 @@ def init_json_files():
     is_vercel = os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV')
     
     if is_vercel:
-        # Su Vercel, prova a caricare da MongoDB/storage se disponibile
-        if STORAGE_AVAILABLE:
-            try:
-                config = storage.load_odata_config(ODATA_CONFIG_JSON)
-                if config:
-                    app.logger.info(f"Configurazione OData caricata da storage: URL={config.get('odata_url')}, Endpoint={config.get('odata_endpoint')}")
-                else:
-                    app.logger.info(f"Configurazione OData non trovata in storage, userà valori di default")
-            except Exception as e:
-                # Non loggare errori MongoDB come errori critici - l'app può funzionare senza
-                error_str = str(e)
-                if 'authentication failed' in error_str.lower() or 'bad auth' in error_str.lower():
-                    app.logger.warning(f"MongoDB non disponibile (credenziali non valide), configurazione OData userà valori di default")
-                else:
-                    app.logger.warning(f"Errore nel caricamento configurazione da storage: {error_str}")
-        else:
-            app.logger.info("Su Vercel senza storage, configurazione OData userà valori di default")
+        # Su Vercel, non caricare la configurazione all'avvio per evitare connessioni MongoDB ad ogni richiesta
+        # La configurazione verrà caricata lazy quando necessario
+        app.logger.info("Su Vercel: configurazione OData verrà caricata quando necessario")
         return
     
     # Su altri hosting, usa il filesystem

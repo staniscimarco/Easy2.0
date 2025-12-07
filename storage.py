@@ -183,7 +183,18 @@ def save_odata_config(config: Dict[str, Any], local_file: str = 'odata_config.js
 
 
 def load_odata_config(local_file: str = 'odata_config.json') -> Optional[Dict[str, Any]]:
-    """Carica la configurazione OData da MongoDB o file system locale"""
+    """Carica la configurazione OData da file system locale o MongoDB"""
+    # Prova prima il file system locale (più veloce, non richiede connessione)
+    if os.path.exists(local_file):
+        try:
+            with open(local_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                print(f"✅ Config OData caricata da file locale")
+                return config
+        except Exception as e:
+            print(f"⚠️ Errore caricamento config OData da file: {e}. Provo MongoDB.")
+    
+    # Fallback: MongoDB (solo se il file locale non esiste)
     client, db = get_mongo_client()
     
     if client is not None and db is not None:
@@ -195,17 +206,7 @@ def load_odata_config(local_file: str = 'odata_config.json') -> Optional[Dict[st
                 print(f"✅ Config OData caricata da MongoDB")
                 return doc['config']
         except Exception as e:
-            print(f"⚠️ Errore caricamento MongoDB: {e}. Provo file system locale.")
-    
-    # Fallback: file system locale
-    if os.path.exists(local_file):
-        try:
-            with open(local_file, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-                print(f"✅ Config OData caricata da file locale")
-                return config
-        except Exception as e:
-            print(f"❌ Errore caricamento config OData: {e}")
+            print(f"⚠️ Errore caricamento MongoDB: {e}")
     
     return None
 
