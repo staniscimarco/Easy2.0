@@ -1,6 +1,6 @@
 """
 Modulo per gestire lo storage persistente dei dati.
-Su Railway usa MongoDB, in locale usa file system.
+Su Render usa MongoDB, in locale usa file system.
 """
 import os
 import json
@@ -98,7 +98,7 @@ def save_anagrafica(data: Dict[str, str], local_file: str = 'anagrafica.json') -
                 with open(local_file, 'w', encoding='utf-8') as f:
                     json.dump(data, f, ensure_ascii=False, indent=2)
             except:
-                pass  # Ignora errori di scrittura locale su Railway
+                pass  # Ignora errori di scrittura locale su Render
             
             return True
         except Exception as e:
@@ -242,7 +242,7 @@ def save_extraction(date_str: str, site: str, data: Dict[str, Any], uploads_dir:
                 with open(filepath, 'w', encoding='utf-8') as f:
                     json.dump(extraction_data, f, ensure_ascii=False, indent=2)
             except:
-                pass  # Ignora errori su Railway
+                pass  # Ignora errori su Render
             
             return filename
         except Exception as e:

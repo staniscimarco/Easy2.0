@@ -196,7 +196,7 @@
         }
         
         const file = fileInput.files[0];
-        // USA SEMPRE CHUNK per TUTTI i file (Railway supporta fino a 100MB, ma usiamo chunk per efficienza)
+        // USA SEMPRE CHUNK per TUTTI i file (Render supporta file grandi, ma usiamo chunk per efficienza)
         // Chunk da 1.5MB: quando convertito in Base64 diventa ~2MB
         const chunkSize = 1.5 * 1024 * 1024; // 1.5MB per chunk
         const fileId = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);

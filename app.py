@@ -23,10 +23,9 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
 
 # Configurazione cartella uploads
-# Su Railway e altri hosting, usa la cartella uploads
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
-# Limite file size: 20MB (Railway supporta fino a 100MB)
+# Limite file size: 20MB
 app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20MB max file size
 
 # Crea la cartella uploads se non esiste
@@ -2880,7 +2879,7 @@ def service_worker():
 
 
 if __name__ == '__main__':
-    # In produzione su Vercel, questo viene eseguito solo in locale
+    # In produzione su Render, questo viene eseguito solo in locale
     debug_mode = os.environ.get('FLASK_ENV') != 'production'
     port = int(os.environ.get('PORT', 5004))
     app.run(debug=debug_mode, host='0.0.0.0', port=port)

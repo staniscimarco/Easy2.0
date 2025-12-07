@@ -2,41 +2,43 @@
 
 Applicazione Flask per la trasformazione di file CSV e l'estrazione di dati da OData.
 
-## 🚀 Deployment su Railway
+## 🚀 Deployment su Render
 
-L'applicazione è configurata per il deployment automatico su Railway. Railway supporta file fino a **100MB** (molto più di Vercel che aveva solo 4.5MB).
+L'applicazione è configurata per il deployment automatico su Render.
 
 ### Primo Deployment
 
-1. Vai su [Railway](https://railway.app) e crea un account
-2. Clicca su "New Project" → "Deploy from GitHub repo"
-3. Seleziona il repository `Easy2.0`
-4. Railway rileverà automaticamente Python e installerà le dipendenze
+1. Vai su [Render Dashboard](https://dashboard.render.com) e crea un account
+2. Clicca su "New +" → "Web Service"
+3. Connetti il tuo repository GitHub `Easy2.0`
+4. Render rileverà automaticamente Python e installerà le dipendenze
 5. Configura le variabili d'ambiente (vedi sotto)
 
-### Variabili d'Ambiente su Railway
+### Variabili d'Ambiente su Render
 
-Vai su **Settings** → **Variables** e aggiungi:
+Vai su **Environment** e aggiungi:
 
 - `MONGODB_URI`: La tua connection string MongoDB (es: `mongodb+srv://user:pass@cluster.mongodb.net/`)
 - `MONGODB_DB_NAME`: Nome del database (default: `easyloading`)
 - `SECRET_KEY`: Chiave segreta per Flask (genera una stringa casuale)
-- `PORT`: Railway lo imposta automaticamente, non modificare
+- `PYTHON_VERSION`: `3.11.0` (opzionale, Render lo rileva automaticamente)
+
+**Nota**: `PORT` viene impostato automaticamente da Render, non aggiungerlo.
 
 ### Deployment Automatico
 
-Railway esegue automaticamente il deployment ogni volta che fai un push su GitHub:
+Render esegue automaticamente il deployment ogni volta che fai un push su GitHub:
 ```bash
 git add .
 git commit -m "Descrizione delle modifiche"
 git push
 ```
 
-Railway rileverà automaticamente le modifiche e farà il redeploy.
+Render rileverà automaticamente le modifiche e farà il redeploy.
 
 ### HTTPS
 
-Railway fornisce automaticamente HTTPS gratuito per tutti i servizi. Non è necessaria alcuna configurazione aggiuntiva.
+Render fornisce automaticamente HTTPS gratuito per tutti i servizi. Non è necessaria alcuna configurazione aggiuntiva.
 
 ## 📁 Struttura del Progetto
 
@@ -45,8 +47,8 @@ Easy2.0/
 ├── app.py                 # Applicazione Flask principale
 ├── storage.py             # Modulo per storage persistente (MongoDB)
 ├── requirements.txt       # Dipendenze Python
-├── railway.json           # Configurazione Railway
-├── Procfile               # Comando di avvio per Railway
+├── render.yaml            # Configurazione Render
+├── Procfile               # Comando di avvio per Render
 ├── templates/            # Template HTML
 ├── static/              # File statici (CSS, JS, immagini)
 ├── uploads/             # File caricati (creato automaticamente)
@@ -75,10 +77,10 @@ L'applicazione sarà disponibile su `http://localhost:5004`
 - File più grandi: upload in chunk automatico (1.5MB per chunk, Base64)
 - La cartella `uploads/` viene creata automaticamente solo per file temporanei
 - Assicurati di non committare file sensibili (credenziali, ecc.)
-- Le credenziali MongoDB devono essere configurate come variabili d'ambiente su Railway
+- Le credenziali MongoDB devono essere configurate come variabili d'ambiente su Render
 
 ## 🔗 Link Utili
 
-- [Railway Dashboard](https://railway.app/dashboard)
+- [Render Dashboard](https://dashboard.render.com)
 - [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
-- [Documentazione Railway](https://docs.railway.app)
+- [Documentazione Render](https://render.com/docs)
