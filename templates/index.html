@@ -234,7 +234,7 @@
             
             // Funzione per caricare un chunk (usa JSON per evitare limite Vercel)
             function uploadChunk(chunkIndex) {
-            return new Promise((resolve, reject) => {
+                return new Promise((resolve, reject) => {
                 const start = chunkIndex * chunkSize;
                 const end = Math.min(start + chunkSize, file.size);
                 const chunk = file.slice(start, end);
@@ -285,14 +285,14 @@
                 reader.onerror = function() {
                     reject(new Error('Errore lettura chunk'));
                 };
-                reader.readAsArrayBuffer(chunk);
-            });
-        }
-        
-        // Carica tutti i chunk in sequenza
-        let currentChunk = 0;
-        function uploadAllChunks() {
-            if (currentChunk >= totalChunks) {
+                    reader.readAsArrayBuffer(chunk);
+                });
+            }
+            
+            // Carica tutti i chunk in sequenza
+            let currentChunk = 0;
+            function uploadAllChunks() {
+                if (currentChunk >= totalChunks) {
                 // Tutti i chunk caricati, ora merge e processa
                 btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Elaborazione in corso...';
                 
@@ -336,6 +336,24 @@
                     btn.disabled = false;
                     btn.innerHTML = originalBtnText;
                 });
+                }
+                
+                // Aggiorna progresso
+                const progress = Math.round((currentChunk / totalChunks) * 100);
+                btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Caricamento ${progress}% (${currentChunk + 1}/${totalChunks})...`;
+                
+                // Carica il chunk corrente
+                uploadChunk(currentChunk)
+                    .then(() => {
+                        currentChunk++;
+                        uploadAllChunks();
+                    })
+                    .catch(error => {
+                        console.error('Errore upload chunk:', error);
+                        alert('Errore durante il caricamento: ' + error.message);
+                        btn.disabled = false;
+                        btn.innerHTML = originalBtnText;
+                    });
             }
             
             // Inizia il caricamento
