@@ -9,15 +9,15 @@
   "routes": [
     {
       "src": "/static/(.*)",
-      "dest": "app.py"
+      "dest": "/static/$1"
     },
     {
       "src": "/favicon.ico",
-      "dest": "app.py"
+      "dest": "/static/icon-192.png"
     },
     {
       "src": "/manifest.json",
-      "dest": "app.py"
+      "dest": "/static/manifest.json"
     },
     {
       "src": "/(.*)",
