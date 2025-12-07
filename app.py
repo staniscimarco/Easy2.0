@@ -62,39 +62,67 @@ ODATA_CONFIG_JSON = 'odata_config.json'
 # Inizializza i file JSON se non esistono
 def init_json_files():
     """Inizializza i file JSON se non esistono"""
-    # Inizializza odata_config.json se non esiste
-    if not os.path.exists(ODATA_CONFIG_JSON):
-        app.logger.info(f"File {ODATA_CONFIG_JSON} non trovato, creazione con valori di default")
-        default_config = {
-            'odata_url': 'https://voiapp.fr',
-            'odata_endpoint': 'michelinpal/odata/DMX',
-            'requires_auth': True,
-            'auth_type': 'basic',
-            'auth_username': 'API',
-            'auth_password': 'IPA',
-            'auth_token': '',
-            'date_field': 'LaunchDate',
-            'site_field': 'SiteName'
-        }
-        try:
-            with open(ODATA_CONFIG_JSON, 'w', encoding='utf-8') as f:
-                json.dump(default_config, f, ensure_ascii=False, indent=2)
-            app.logger.info(f"File {ODATA_CONFIG_JSON} creato con successo")
-        except Exception as e:
-            app.logger.error(f"Impossibile creare {ODATA_CONFIG_JSON}: {e}")
-    else:
-        app.logger.info(f"File {ODATA_CONFIG_JSON} trovato, caricamento configurazione")
-        try:
-            with open(ODATA_CONFIG_JSON, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-            app.logger.info(f"Configurazione OData caricata: URL={config.get('odata_url')}, Endpoint={config.get('odata_endpoint')}, Username={config.get('auth_username')}")
-        except Exception as e:
-            app.logger.error(f"Errore nel caricamento {ODATA_CONFIG_JSON}: {e}")
+    # Su Vercel, il filesystem è read-only, quindi non possiamo creare file
+    # Usiamo solo MongoDB/storage se disponibile, altrimenti skip
+    is_vercel = os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV')
     
-    # Cache rimossa - non più necessaria
+    if is_vercel:
+        # Su Vercel, prova a caricare da MongoDB/storage se disponibile
+        if STORAGE_AVAILABLE:
+            try:
+                config = storage.load_odata_config(ODATA_CONFIG_JSON)
+                if config:
+                    app.logger.info(f"Configurazione OData caricata da storage: URL={config.get('odata_url')}, Endpoint={config.get('odata_endpoint')}")
+                else:
+                    app.logger.info(f"Configurazione OData non trovata in storage, userà valori di default")
+            except Exception as e:
+                app.logger.warning(f"Errore nel caricamento configurazione da storage: {e}")
+        else:
+            app.logger.info("Su Vercel senza storage, configurazione OData userà valori di default")
+        return
+    
+    # Su altri hosting, usa il filesystem
+    try:
+        if not os.path.exists(ODATA_CONFIG_JSON):
+            app.logger.info(f"File {ODATA_CONFIG_JSON} non trovato, creazione con valori di default")
+            default_config = {
+                'odata_url': 'https://voiapp.fr',
+                'odata_endpoint': 'michelinpal/odata/DMX',
+                'requires_auth': True,
+                'auth_type': 'basic',
+                'auth_username': 'API',
+                'auth_password': 'IPA',
+                'auth_token': '',
+                'date_field': 'LaunchDate',
+                'site_field': 'SiteName'
+            }
+            try:
+                with open(ODATA_CONFIG_JSON, 'w', encoding='utf-8') as f:
+                    json.dump(default_config, f, ensure_ascii=False, indent=2)
+                app.logger.info(f"File {ODATA_CONFIG_JSON} creato con successo")
+            except Exception as e:
+                app.logger.error(f"Impossibile creare {ODATA_CONFIG_JSON}: {e}")
+        else:
+            app.logger.info(f"File {ODATA_CONFIG_JSON} trovato, caricamento configurazione")
+            try:
+                with open(ODATA_CONFIG_JSON, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                app.logger.info(f"Configurazione OData caricata: URL={config.get('odata_url')}, Endpoint={config.get('odata_endpoint')}, Username={config.get('auth_username')}")
+            except Exception as e:
+                app.logger.error(f"Errore nel caricamento {ODATA_CONFIG_JSON}: {e}")
+    except Exception as e:
+        app.logger.error(f"Errore generale in init_json_files: {e}")
+        import traceback
+        app.logger.error(traceback.format_exc())
 
-# Inizializza i file JSON all'avvio
-init_json_files()
+# Inizializza i file JSON all'avvio (solo se l'app è stata creata)
+try:
+    if 'app' in globals():
+        init_json_files()
+except Exception as e:
+    print(f"⚠️ Errore durante init_json_files: {e}")
+    import traceback
+    traceback.print_exc()
 
 # Variabile globale per memorizzare l'anagrafica
 anagrafica_data = None
