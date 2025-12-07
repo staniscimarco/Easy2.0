@@ -382,23 +382,27 @@ def list_extractions(uploads_dir: str) -> List[Dict[str, Any]]:
 
 def save_chunk(file_id: str, chunk_index: int, chunk_data: bytes) -> bool:
     """Salva un chunk di file in MongoDB"""
-    client, db = get_mongo_client()
-    
-    if client is not None and db is not None:
-        try:
-            collection = db['csv_chunks']
-            collection.insert_one({
-                'file_id': file_id,
-                'chunk_index': chunk_index,
-                'chunk_data': base64.b64encode(chunk_data).decode('utf-8'),  # Salva come Base64 (più efficiente)
-                'created_at': datetime.now().isoformat()
-            })
-            return True
-        except Exception as e:
-            print(f"⚠️ Errore salvataggio chunk MongoDB: {e}")
+    try:
+        client, db = get_mongo_client()
+        
+        if client is None or db is None:
+            print(f"⚠️ MongoDB client o db è None. USE_MONGODB={USE_MONGODB}, MONGODB_URI={bool(MONGODB_URI)}")
             return False
-    
-    return False
+        
+        collection = db['csv_chunks']
+        result = collection.insert_one({
+            'file_id': file_id,
+            'chunk_index': chunk_index,
+            'chunk_data': base64.b64encode(chunk_data).decode('utf-8'),  # Salva come Base64 (più efficiente)
+            'created_at': datetime.now().isoformat()
+        })
+        print(f"✅ Chunk {chunk_index} salvato con _id: {result.inserted_id}")
+        return True
+    except Exception as e:
+        import traceback
+        print(f"⚠️ Errore salvataggio chunk MongoDB: {e}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return False
 
 
 def merge_chunks(file_id: str, original_filename: str) -> Optional[str]:

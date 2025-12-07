@@ -545,7 +545,7 @@ def upload_chunk():
         if not data:
             return jsonify({'error': 'Richiesta deve essere JSON'}), 400
         
-        chunk_data_hex = data.get('chunkData')  # Hex string invece di file
+        chunk_data_hex = data.get('chunkData')  # Base64 string invece di file
         chunk_index = int(data.get('chunkIndex', 0))
         total_chunks = int(data.get('totalChunks', 0))
         file_id = data.get('fileId')
@@ -554,18 +554,22 @@ def upload_chunk():
         if not chunk_data_hex or chunk_index is None or total_chunks is None or not file_id:
             return jsonify({'error': 'Parametri mancanti'}), 400
         
-        # Decodifica da Base64 (più efficiente di hex)
+        # Decodifica da Base64
         try:
             import base64
             chunk_bytes = base64.b64decode(chunk_data_hex)
+            app.logger.info(f"Chunk {chunk_index + 1}/{total_chunks} decodificato: {len(chunk_bytes)} bytes")
         except Exception as e:
+            app.logger.error(f"Errore decodifica Base64: {e}")
             return jsonify({'error': f'Formato chunk non valido: {str(e)}'}), 400
         
         # Per file grandi (> 4.5MB), usa S3 invece di MongoDB
         # I chunk vengono salvati temporaneamente in MongoDB, poi il file completo va su S3
         if not STORAGE_AVAILABLE:
+            app.logger.error("STORAGE_AVAILABLE è False")
             return jsonify({'error': 'MongoDB non disponibile. Configura MONGODB_URI su Vercel.'}), 500
         
+        app.logger.info(f"Tentativo salvataggio chunk {chunk_index + 1}/{total_chunks} per file {file_id}")
         success = storage.save_chunk(file_id, chunk_index, chunk_bytes)
         if success:
             app.logger.info(f"Chunk {chunk_index + 1}/{total_chunks} salvato temporaneamente per file {file_id}")
@@ -575,11 +579,13 @@ def upload_chunk():
                 'message': f'Chunk {chunk_index + 1}/{total_chunks} caricato'
             })
         else:
-            return jsonify({'error': 'Errore nel salvataggio del chunk'}), 500
+            app.logger.error(f"save_chunk ha restituito False per chunk {chunk_index + 1}/{total_chunks}")
+            return jsonify({'error': 'Errore nel salvataggio del chunk. Verifica la connessione MongoDB.'}), 500
     except Exception as e:
         import traceback
-        app.logger.error(f"Errore upload chunk: {traceback.format_exc()}")
-        return jsonify({'error': str(e)}), 500
+        error_trace = traceback.format_exc()
+        app.logger.error(f"Errore upload chunk: {error_trace}")
+        return jsonify({'error': f'Errore server: {str(e)}'}), 500
 
 
 @app.route('/api/merge_chunks', methods=['POST'])

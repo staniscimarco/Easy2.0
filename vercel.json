@@ -19,6 +19,10 @@
       "dest": "/static/icon-192.png"
     },
     {
+      "src": "/manifest.json",
+      "dest": "/static/manifest.json"
+    },
+    {
       "src": "/(.*)",
       "dest": "app.py"
     }
