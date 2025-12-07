@@ -2965,8 +2965,25 @@ def test_mongodb():
 def serve_static(filename):
     """Serve i file statici (logo, icone, manifest, ecc.)"""
     try:
-        # Su Vercel, i file statici devono essere serviti dalla cartella static
-        return app.send_static_file(filename)
+        # Determina il content-type in base all'estensione
+        content_type = 'application/octet-stream'
+        if filename.endswith('.png'):
+            content_type = 'image/png'
+        elif filename.endswith('.jpg') or filename.endswith('.jpeg'):
+            content_type = 'image/jpeg'
+        elif filename.endswith('.webp'):
+            content_type = 'image/webp'
+        elif filename.endswith('.json'):
+            content_type = 'application/json'
+        elif filename.endswith('.js'):
+            content_type = 'application/javascript'
+        elif filename.endswith('.css'):
+            content_type = 'text/css'
+        
+        response = app.send_static_file(filename)
+        response.headers['Content-Type'] = content_type
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        return response
     except Exception as e:
         app.logger.error(f"Errore servizio file statico {filename}: {e}")
         import traceback
@@ -2977,8 +2994,12 @@ def serve_static(filename):
 def favicon():
     """Serve il favicon"""
     try:
-        return app.send_static_file('icon-192.png')
-    except:
+        response = app.send_static_file('icon-192.png')
+        response.headers['Content-Type'] = 'image/png'
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        return response
+    except Exception as e:
+        app.logger.error(f"Errore servizio favicon: {e}")
         return '', 204  # No content se non trovato
 
 @app.route('/static/sw.js')
