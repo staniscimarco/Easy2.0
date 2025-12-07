@@ -3052,6 +3052,9 @@ def service_worker():
     return app.send_static_file('sw.js'), 200, {'Content-Type': 'application/javascript'}
 
 
+# Handler per Vercel serverless
+handler = app
+
 if __name__ == '__main__':
     # In produzione su Render, questo viene eseguito solo in locale
     debug_mode = os.environ.get('FLASK_ENV') != 'production'
