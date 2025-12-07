@@ -212,21 +212,22 @@
             
             const file = fileInput.files[0];
             console.log('File selezionato:', file.name, 'Dimensione:', file.size, 'bytes');
-        // USA SEMPRE CHUNK per TUTTI i file (Render supporta file grandi, ma usiamo chunk per efficienza)
-        // Chunk da 1.5MB: quando convertito in Base64 diventa ~2MB
-        const chunkSize = 1.5 * 1024 * 1024; // 1.5MB per chunk
-        const fileId = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        
-        // Mostra indicatore di caricamento
-        const originalBtnText = btn.innerHTML;
-        btn.disabled = true;
-        
-        // Calcola numero di chunk
-        const totalChunks = Math.ceil(file.size / chunkSize);
-        btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Preparazione upload (${totalChunks} chunk)...`;
-        
-        // Funzione per caricare un chunk (usa JSON per evitare limite Vercel)
-        function uploadChunk(chunkIndex) {
+            
+            // USA SEMPRE CHUNK per TUTTI i file
+            // Chunk da 1.5MB: quando convertito in Base64 diventa ~2MB
+            const chunkSize = 1.5 * 1024 * 1024; // 1.5MB per chunk
+            const fileId = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            
+            // Mostra indicatore di caricamento
+            const originalBtnText = btn.innerHTML;
+            btn.disabled = true;
+            
+            // Calcola numero di chunk
+            const totalChunks = Math.ceil(file.size / chunkSize);
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Preparazione upload (${totalChunks} chunk)...`;
+            
+            // Funzione per caricare un chunk (usa JSON per evitare limite Vercel)
+            function uploadChunk(chunkIndex) {
             return new Promise((resolve, reject) => {
                 const start = chunkIndex * chunkSize;
                 const end = Math.min(start + chunkSize, file.size);
@@ -329,8 +330,8 @@
                     btn.disabled = false;
                     btn.innerHTML = originalBtnText;
                 });
-        }
-        
+            }
+            
             // Inizia il caricamento
             console.log('Inizio upload chunk...');
             uploadAllChunks();

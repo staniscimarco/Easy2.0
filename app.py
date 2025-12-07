@@ -26,7 +26,7 @@ except ImportError:
     S3_AVAILABLE = False
     print("⚠️ Modulo s3_storage non disponibile, upload S3 disabilitato")
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 # Usa la secret key da variabile d'ambiente o una di default per sviluppo
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
 
