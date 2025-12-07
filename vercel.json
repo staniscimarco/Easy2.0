@@ -23,15 +23,6 @@
       "src": "/(.*)",
       "dest": "app.py"
     }
-  ],
-  "functions": {
-    "app.py": {
-      "includeFiles": "static/**"
-    }
-  },
-  "env": {
-    "FLASK_ENV": "production",
-    "VERCEL": "1"
-  }
+  ]
 }
 
