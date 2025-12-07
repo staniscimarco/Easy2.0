@@ -41,8 +41,9 @@ else:
 # Limite file size: 20MB
 app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20MB max file size
 
-# Crea la cartella uploads se non esiste
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+# Crea la cartella uploads se non esiste (solo se non siamo su Vercel)
+if not (os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV')):
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # File JSON per salvare l'anagrafica
 ANAGRAFICA_JSON = 'anagrafica.json'
@@ -173,7 +174,6 @@ def load_anagrafica_json():
             except Exception as e:
                 print(f"Errore nel caricamento dell'anagrafica da JSON: {e}")
                 anagrafica_data = None
-    return 0
     return 0
 
 
