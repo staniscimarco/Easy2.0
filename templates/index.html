@@ -67,7 +67,7 @@
                     Trasforma File CSV
                 </div>
                 <div class="card-body">
-                    <form id="transform-form" onsubmit="return false;">
+                    <form id="transform-form">
                         <div class="file-input-wrapper mb-3">
                             <input type="file" name="file" accept=".csv" required id="transform-file" 
                                    {% if not anagrafica_loaded %}disabled{% endif %}>
@@ -257,16 +257,6 @@
                 };
                 reader.readAsArrayBuffer(chunk);
             });
-        }
-        
-        // Assicurati che il form non venga mai inviato tradizionalmente
-        const form = document.getElementById('transform-form');
-        if (form) {
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-            }, true); // Usa capture phase per intercettare prima
         }
         
         // Carica tutti i chunk in sequenza
