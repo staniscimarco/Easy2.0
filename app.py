@@ -18,12 +18,25 @@ except ImportError:
     STORAGE_AVAILABLE = False
     print("⚠️ Modulo storage non disponibile, uso solo file system locale")
 
+# Import modulo S3 per file grandi
+try:
+    import s3_storage
+    S3_AVAILABLE = s3_storage.USE_S3
+except ImportError:
+    S3_AVAILABLE = False
+    print("⚠️ Modulo s3_storage non disponibile, upload S3 disabilitato")
+
 app = Flask(__name__)
 # Usa la secret key da variabile d'ambiente o una di default per sviluppo
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
 
 # Configurazione cartella uploads
-app.config['UPLOAD_FOLDER'] = 'uploads'
+# Su Vercel (serverless), usa /tmp per i file (filesystem è read-only tranne /tmp)
+# In locale o su altri hosting, usa la cartella uploads
+if os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV'):
+    app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
+else:
+    app.config['UPLOAD_FOLDER'] = 'uploads'
 
 # Limite file size: 20MB
 app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20MB max file size
@@ -548,20 +561,21 @@ def upload_chunk():
         except Exception as e:
             return jsonify({'error': f'Formato chunk non valido: {str(e)}'}), 400
         
-        # Salva SEMPRE in MongoDB (non usare filesystem)
+        # Per file grandi (> 4.5MB), usa S3 invece di MongoDB
+        # I chunk vengono salvati temporaneamente in MongoDB, poi il file completo va su S3
         if not STORAGE_AVAILABLE:
             return jsonify({'error': 'MongoDB non disponibile. Configura MONGODB_URI su Vercel.'}), 500
         
         success = storage.save_chunk(file_id, chunk_index, chunk_bytes)
         if success:
-            app.logger.info(f"Chunk {chunk_index + 1}/{total_chunks} salvato in MongoDB per file {file_id}")
+            app.logger.info(f"Chunk {chunk_index + 1}/{total_chunks} salvato temporaneamente per file {file_id}")
             return jsonify({
                 'success': True,
                 'chunkIndex': chunk_index,
-                'message': f'Chunk {chunk_index + 1}/{total_chunks} caricato in MongoDB'
+                'message': f'Chunk {chunk_index + 1}/{total_chunks} caricato'
             })
         else:
-            return jsonify({'error': 'Errore nel salvataggio del chunk in MongoDB'}), 500
+            return jsonify({'error': 'Errore nel salvataggio del chunk'}), 500
     except Exception as e:
         import traceback
         app.logger.error(f"Errore upload chunk: {traceback.format_exc()}")
@@ -629,28 +643,63 @@ def merge_chunks():
             except:
                 pass
         
-        # Salva SEMPRE il risultato in MongoDB (non usare filesystem)
-        client, db = storage.get_mongo_client()
-        if client is not None and db is not None:
-            collection = db['csv_transforms']
-            collection.update_one(
-                {'file_id': file_id},
-                {
-                    '$set': {
-                        'output_filename': output_filename,
-                        'file_data': transformed_content.hex(),  # Salva come hex
-                        'rows_processed': rows_processed,
-                        'rows_transformed': rows_transformed,
-                        'missing_codes': missing_codes,
-                        'status': 'processed',
-                        'updated_at': datetime.now().isoformat()
-                    }
-                },
-                upsert=True
-            )
-            app.logger.info(f"File trasformato salvato in MongoDB (senza filesystem): {file_id}")
+        # Se il file è > 4.5MB, salvalo su S3 invece di MongoDB
+        file_size = len(transformed_content)
+        max_mongodb_size = 4.5 * 1024 * 1024  # 4.5MB
+        
+        if file_size > max_mongodb_size and S3_AVAILABLE:
+            # Salva su S3 per file grandi
+            if s3_storage.upload_file_to_s3(transformed_content, file_id, output_filename):
+                # Salva solo metadata in MongoDB
+                client, db = storage.get_mongo_client()
+                if client is not None and db is not None:
+                    collection = db['csv_transforms']
+                    collection.update_one(
+                        {'file_id': file_id},
+                        {
+                            '$set': {
+                                'output_filename': output_filename,
+                                'file_size': file_size,
+                                'storage_type': 's3',
+                                'rows_processed': rows_processed,
+                                'rows_transformed': rows_transformed,
+                                'missing_codes': missing_codes,
+                                'status': 'processed',
+                                'updated_at': datetime.now().isoformat()
+                            }
+                        },
+                        upsert=True
+                    )
+                    app.logger.info(f"File grande salvato su S3: {file_id} ({file_size / 1024 / 1024:.2f}MB)")
+                else:
+                    return jsonify({'error': 'MongoDB non disponibile per salvare metadata'}), 500
+            else:
+                return jsonify({'error': 'Errore nel salvataggio su S3'}), 500
         else:
-            return jsonify({'error': 'MongoDB non disponibile per salvare il risultato'}), 500
+            # Salva in MongoDB per file piccoli
+            client, db = storage.get_mongo_client()
+            if client is not None and db is not None:
+                collection = db['csv_transforms']
+                collection.update_one(
+                    {'file_id': file_id},
+                    {
+                        '$set': {
+                            'output_filename': output_filename,
+                            'file_data': transformed_content.hex(),  # Salva come hex
+                            'file_size': file_size,
+                            'storage_type': 'mongodb',
+                            'rows_processed': rows_processed,
+                            'rows_transformed': rows_transformed,
+                            'missing_codes': missing_codes,
+                            'status': 'processed',
+                            'updated_at': datetime.now().isoformat()
+                        }
+                    },
+                    upsert=True
+                )
+                app.logger.info(f"File piccolo salvato in MongoDB: {file_id} ({file_size / 1024 / 1024:.2f}MB)")
+            else:
+                return jsonify({'error': 'MongoDB non disponibile per salvare il risultato'}), 500
         
         return jsonify({
             'success': True,
@@ -669,25 +718,59 @@ def merge_chunks():
 
 @app.route('/api/download_transformed/<file_id>')
 def download_transformed(file_id):
-    """Scarica il file trasformato da MongoDB o file system"""
+    """Scarica il file trasformato da S3 (per file grandi) o MongoDB (per file piccoli)"""
     try:
-        # Prova a caricare da MongoDB
-        if STORAGE_AVAILABLE:
-            file_doc = storage.get_transformed_file(file_id)
-            if file_doc:
-                output_filename = file_doc.get('output_filename', 'YDMXEL_trasformato.csv')
-                file_content = file_doc['file_data']
+        # Recupera metadata da MongoDB
+        if not STORAGE_AVAILABLE:
+            return jsonify({'error': 'Storage non disponibile'}), 500
+        
+        file_doc = storage.get_transformed_file(file_id)
+        if not file_doc:
+            return jsonify({'error': 'File non trovato'}), 404
+        
+        output_filename = file_doc.get('output_filename', 'YDMXEL_trasformato.csv')
+        storage_type = file_doc.get('storage_type', 'mongodb')
+        
+        # Se è su S3, scarica da S3
+        if storage_type == 's3' and S3_AVAILABLE:
+            file_content = s3_storage.download_file_from_s3(file_id, output_filename)
+            if file_content:
+                # Elimina da S3 dopo il download
+                s3_storage.delete_file_from_s3(file_id, output_filename)
+                # Elimina metadata da MongoDB
+                storage.delete_transformed_file(file_id)
                 
-                # Crea un file temporaneo per il download
+                # Crea file temporaneo per il download
                 uploads_dir = app.config['UPLOAD_FOLDER']
                 temp_path = os.path.join(uploads_dir, output_filename)
                 with open(temp_path, 'wb') as f:
                     f.write(file_content)
                 
-                # Cancella da MongoDB dopo il download
-                storage.delete_transformed_file(file_id)
-                
                 return send_file(
+                    temp_path,
+                    as_attachment=True,
+                    download_name=output_filename,
+                    mimetype='text/csv'
+                )
+            else:
+                return jsonify({'error': 'Errore nel download da S3'}), 500
+        else:
+            # File piccolo, scarica da MongoDB
+            file_content = file_doc['file_data']
+            if isinstance(file_content, str):
+                # Decodifica da hex
+                file_content = bytes.fromhex(file_content)
+            
+            # Crea file temporaneo per il download
+            uploads_dir = app.config['UPLOAD_FOLDER']
+            temp_path = os.path.join(uploads_dir, output_filename)
+            with open(temp_path, 'wb') as f:
+                f.write(file_content)
+            
+            # Cancella da MongoDB dopo il download
+            storage.delete_transformed_file(file_id)
+            
+            return send_file(
                     temp_path,
                     as_attachment=True,
                     download_name=output_filename,
