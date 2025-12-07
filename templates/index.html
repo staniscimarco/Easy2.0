@@ -177,11 +177,12 @@
     
     if (transformFileInput && transformLabel) {
         // Fai click sul file input quando si clicca sul label
+        transformLabel.style.cursor = 'pointer';
         transformLabel.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
             if (!transformFileInput.disabled) {
                 console.log('Label clicked, triggering file input');
+                e.preventDefault();
+                e.stopPropagation();
                 transformFileInput.click();
             }
         });
